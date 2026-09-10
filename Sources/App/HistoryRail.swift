@@ -8,20 +8,27 @@ struct HistoryRail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PanelLabel("History")
-            ScrollView {
-                HStack(alignment: .top, spacing: 0) {
-                    CoreSpine()
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(model.snapshots) { snapshot in
-                            SnapshotLamina(
-                                snapshot: snapshot,
-                                isActive: snapshot.id == model.activeSnapshot?.id
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture { model.activate(snapshot) }
-                            Divider().overlay(Palette.hairline)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    HStack(alignment: .top, spacing: 0) {
+                        CoreSpine()
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(model.snapshots) { snapshot in
+                                SnapshotLamina(
+                                    snapshot: snapshot,
+                                    isActive: snapshot.id == model.activeSnapshot?.id
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture { model.activate(snapshot) }
+                                .id(snapshot.id)
+                                Divider().overlay(Palette.hairline)
+                            }
                         }
                     }
+                }
+                .onChange(of: model.activeSnapshot?.id) { _, active in
+                    guard let active else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(active, anchor: .center) }
                 }
             }
         }
