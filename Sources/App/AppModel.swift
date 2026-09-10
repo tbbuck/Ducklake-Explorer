@@ -36,6 +36,10 @@ final class AppModel {
     private(set) var isLoading = false
 
     private var session: LakeSession?
+    private(set) var recents: [RecentConnection] = []
+    private let recentsKey = "recentLakes.v1"
+
+    init() { loadRecents() }
 
     var lakeName: String? { lakePath.map { ($0 as NSString).lastPathComponent } }
 
@@ -83,8 +87,28 @@ final class AppModel {
                     LIMIT 200;
                     """
             }
+            addRecent(path: path)
         } catch {
             errorText = String(describing: error)
+        }
+    }
+
+    // MARK: Recents
+
+    func loadRecents() {
+        guard let data = UserDefaults.standard.data(forKey: recentsKey),
+              let list = try? JSONDecoder().decode([RecentConnection].self, from: data) else { return }
+        recents = list.sorted { $0.lastOpened > $1.lastOpened }
+    }
+
+    private func addRecent(path: String) {
+        let kind = path.lowercased().hasSuffix(".sqlite") ? "sqlite" : "duckdb"
+        let entry = RecentConnection(
+            path: path, name: (path as NSString).lastPathComponent, kind: kind,
+            snapshotCount: snapshots.count, lastOpened: Date())
+        recents = Array(([entry] + recents.filter { $0.path != path }).prefix(12))
+        if let data = try? JSONEncoder().encode(recents) {
+            UserDefaults.standard.set(data, forKey: recentsKey)
         }
     }
 

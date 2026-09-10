@@ -17,13 +17,10 @@ struct DuckLakeExplorerApp: App {
                 .preferredColorScheme(model.appearanceOverride)
                 .task {
                     #if DEBUG
-                    // Dev convenience: auto-open a lake so the shell is populated — the
-                    // real (remote-data) herd lake if present, else the committed fixture.
-                    // Replaced by the ConnectView open flow.
-                    if model.lakePath == nil {
-                        let herd = "/Users/tom/Code/Claude/ducklake-explorer/herd-lake.sqlite"
-                        let fixture = "/Users/tom/Code/Claude/ducklake-explorer/Fixtures/sample.ducklake"
-                        await model.open(path: FileManager.default.fileExists(atPath: herd) ? herd : fixture)
+                    // Dev convenience: auto-open the most-recent lake so launches are
+                    // populated. Release builds start at the ConnectView.
+                    if model.lakePath == nil, let recent = model.recents.first {
+                        await model.open(path: recent.path)
                     }
                     #endif
                 }

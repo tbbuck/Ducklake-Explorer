@@ -68,6 +68,16 @@ struct DataFile: Identifiable, Sendable {
     var name: String { (path as NSString).lastPathComponent }
 }
 
+/// A remembered lake, persisted for the Connect screen. Never stores credentials.
+struct RecentConnection: Identifiable, Codable, Sendable {
+    var id: String { path }
+    let path: String
+    let name: String
+    let kind: String          // "sqlite" | "duckdb"
+    var snapshotCount: Int
+    var lastOpened: Date
+}
+
 /// A schema diff between two snapshots, computed from the catalog's version ranges.
 struct SnapshotDiff: Sendable {
     var tablesAdded: [String] = []

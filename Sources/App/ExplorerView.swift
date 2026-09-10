@@ -11,7 +11,7 @@ struct ExplorerView: View {
         @Bindable var model = model
         Group {
             if model.lakePath == nil {
-                ConnectPlaceholder(open: { showImporter = true })
+                ConnectView(openLocal: { showImporter = true })
             } else {
                 NavigationSplitView {
                     HistoryRail()
@@ -63,28 +63,5 @@ struct ExplorerView: View {
                     .padding()
             }
         }
-    }
-}
-
-/// Pre-open state — the seed of UI-SPEC's `ConnectView` (recents + open panel come next).
-private struct ConnectPlaceholder: View {
-    let open: () -> Void
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "cylinder.split.1x2")
-                .font(.system(size: 44)).foregroundStyle(Palette.accent)
-            Text("DuckLake Explorer").font(.stratumDisplay(26))
-                .foregroundStyle(Palette.textPrimary)
-            Text("Open a .ducklake catalog to explore its schema, snapshots, and files — read-only.")
-                .font(.stratumUI(13)).foregroundStyle(Palette.textSecondary)
-                .multilineTextAlignment(.center).frame(maxWidth: 380)
-            Button(action: open) {
-                Text("Open DuckLake…").font(.stratumUI(13, .medium))
-                    .padding(.horizontal, 16).padding(.vertical, 8)
-            }
-            .buttonStyle(.borderedProminent).tint(Palette.accent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Palette.base)
     }
 }
