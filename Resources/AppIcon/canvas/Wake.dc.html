@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+    body { margin: 0; background: #1E1F22; font-family: 'Hanken Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #E3E5EA; }
+    a { color: #3FA091; } a:hover { color: #7CC8BD; }
+  </style>
+</helmet>
+<div style="width: 440px; height: 600px; box-sizing: border-box; padding: 28px; background: #1E1F22; display: flex; flex-direction: column; align-items: center; gap: 22px;">
+  <svg width="360" height="360" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="186" ry="186"></rect></clipPath>
+      <linearGradient id="water" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#57ABA1"></stop><stop offset="1" stop-color="#2E6E68"></stop>
+      </linearGradient>
+      <radialGradient id="yolk" cx="400" cy="440" r="420" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#FFF45C"></stop><stop offset="0.55" stop-color="#FFF000"></stop><stop offset="1" stop-color="#F2D900"></stop>
+      </radialGradient>
+      <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="16"></feGaussianBlur></filter>
+    </defs>
+    <g id="icon" clip-path="url(#tile)">
+      <rect width="1024" height="1024" fill="url(#water)"></rect>
+      <g fill="none" stroke="#C4D6CE" stroke-opacity="0.5" stroke-width="18" stroke-linecap="round">
+        <path d="M 300 560 L -80 400"></path>
+        <path d="M 300 560 L -80 720"></path>
+      </g>
+      <ellipse cx="480" cy="600" rx="240" ry="235" fill="#10201D" opacity="0.32" filter="url(#soft)"></ellipse>
+      <rect x="790" y="378" width="120" height="56" rx="28" fill="#E0A64C"></rect>
+      <circle cx="450" cy="560" r="235" fill="url(#yolk)"></circle>
+      <circle cx="690" cy="400" r="130" fill="url(#yolk)"></circle>
+      <circle cx="735" cy="365" r="20" fill="#131417"></circle>
+      <rect x="100" y="100" width="824" height="824" rx="186" ry="186" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="6"></rect>
+    </g>
+  </svg>
+  <div style="display: flex; align-items: flex-end; gap: 24px;">
+    <svg width="128" height="128" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="64" height="64" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="32" height="32" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="16" height="16" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 6px; align-self: stretch;">
+    <div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">A · Wake</div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.45; color: #B4B8C0;">The duck seen from above, crossing the lake and trailing a wake. Two yellow discs on teal: the friendliest and most obviously a duck, with no lineage to the DuckDB silhouette.</p>
+    <p style="margin: 0; font-size: 12px; line-height: 1.45; color: #8B9099;">Tradeoff: no strata, so the snapshot story is gone; the wake vanishes at 16px.</p>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

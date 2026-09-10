@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <title>strata</title>
+  <!-- Water-depth ramp beneath the waterline (surface → bedrock). Full-canvas: the system masks the tile. -->
+  <g transform="scale(1.242718) translate(-100 -100)" fill-rule="nonzero">
+    <path fill="#7CC8BD" d="M-40 580 H1064 V1064 H-40 Z"/>
+    <path fill="#57ABA1" d="M-40 646 Q 128 636 256 646 T 512 646 T 768 646 T 1024 646 T 1064 646 V1064 H-40 Z"/>
+    <path fill="#3E8C83" d="M-40 722 Q 128 732 256 722 T 512 722 T 768 722 T 1024 722 T 1064 722 V1064 H-40 Z"/>
+    <path fill="#2E6E68" d="M-40 806 Q 128 796 256 806 T 512 806 T 768 806 T 1024 806 T 1064 806 V1064 H-40 Z"/>
+    <path fill="#204F4C" d="M-40 892 Q 128 902 256 892 T 512 892 T 768 892 T 1024 892 T 1064 892 V1064 H-40 Z"/>
+  </g>
+</svg>

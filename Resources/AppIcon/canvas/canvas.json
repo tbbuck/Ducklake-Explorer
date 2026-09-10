@@ -1,0 +1,22 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Final" },
+    { "id": "page-2", "name": "Explorations" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html",     "title": "DuckLake Explorer · final (C2b)", "x": 0, "y": 0, "w": 440, "h": 600, "page": "page-1" },
+
+    { "file": "Wake.dc.html",     "title": "A · Wake",          "x": 0,    "y": 0, "w": 440, "h": 600, "page": "page-2" },
+    { "file": "Laminae.dc.html",  "title": "B · Laminae",       "x": 540,  "y": 0, "w": 440, "h": 600, "page": "page-2" },
+    { "file": "Porthole.dc.html", "title": "D · Porthole",      "x": 1080, "y": 0, "w": 440, "h": 600, "page": "page-2" },
+    { "file": "Polished.dc.html", "title": "C · Cross-section (polished)", "x": 0, "y": 760, "w": 440, "h": 600, "page": "page-2" },
+    { "file": "Surface.dc.html",    "title": "C1 · On the surface",     "x": 540,  "y": 760, "w": 440, "h": 600, "page": "page-2" },
+    { "file": "Through.dc.html",    "title": "C2 · Through the water",  "x": 1080, "y": 760, "w": 440, "h": 600, "page": "page-2" },
+    { "file": "Reflection.dc.html", "title": "C3 · Reflection",         "x": 1620, "y": 760, "w": 440, "h": 600, "page": "page-2" },
+    { "file": "ThroughWake.dc.html", "title": "C2b · Through the water, with wake", "x": 2160, "y": 760, "w": 440, "h": 600, "page": "page-2" }
+  ],
+  "annotations": [
+    { "id": "brief", "x": 0, "y": -150, "w": 520, "page": "page-2", "text": "Explorations, kept for the record.\nKept: the DuckDB yellow disc as the duck's body. Dropped: DuckDB's negative-space head-and-beak cutout. The original single-disc C was replaced by the two-disc duck from A before polishing.\nChosen: C2b (see the Final page)." }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

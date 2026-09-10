@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="186" ry="186"/></clipPath>
+    <clipPath id="core"><rect x="440" y="560" width="144" height="500" rx="28"/></clipPath>
+    <linearGradient id="sky" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2E3035"/><stop offset="1" stop-color="#131417"/>
+    </linearGradient>
+    <radialGradient id="yolk" cx="430" cy="320" r="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF45C"/><stop offset="0.55" stop-color="#FFF000"/><stop offset="1" stop-color="#F2D900"/>
+    </radialGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"/></filter>
+    <path id="duck" fill-rule="evenodd" d="
+      M 512 170 a 232 232 0 1 0 0.01 0 Z
+      M 482 302 a 100 100 0 1 0 0.01 0 Z
+      M 596 358 H 662 a 30 30 0 0 1 30 30 V 414 a 30 30 0 0 1 -30 30 H 596 Z"/>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="1024" height="1024" fill="url(#sky)"/>
+    <!-- core sample drilled beneath the duck: laminae heights vary like record counts -->
+    <g clip-path="url(#core)">
+      <rect x="440" y="560" width="144" height="500" fill="#7CC8BD"/>
+      <rect x="440" y="640" width="144" height="500" fill="#57ABA1"/>
+      <rect x="440" y="690" width="144" height="500" fill="#3E8C83"/>
+      <rect x="440" y="790" width="144" height="500" fill="#2E6E68"/>
+      <rect x="440" y="860" width="144" height="500" fill="#204F4C"/>
+      <rect x="440" y="560" width="144" height="500" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="40" filter="url(#softShadow)"/>
+    </g>
+    <ellipse cx="512" cy="420" rx="224" ry="228" fill="#000" opacity="0.4" filter="url(#softShadow)"/>
+    <use href="#duck" fill="url(#yolk)"/>
+    <rect x="100" y="100" width="824" height="824" rx="186" ry="186" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="6"/>
+  </g>
+</svg>

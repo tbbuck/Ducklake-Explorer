@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="186" ry="186"/></clipPath>
+    <clipPath id="above"><rect x="0" y="0" width="1024" height="580"/></clipPath>
+    <clipPath id="below"><rect x="0" y="580" width="1024" height="444"/></clipPath>
+    <linearGradient id="sky" x1="0" y1="100" x2="0" y2="580" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FCFBF6"/><stop offset="1" stop-color="#E3E1D8"/>
+    </linearGradient>
+    <radialGradient id="yolk" cx="430" cy="360" r="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF45C"/><stop offset="0.55" stop-color="#FFF000"/><stop offset="1" stop-color="#F2D900"/>
+    </radialGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"/></filter>
+    <circle id="disc" cx="512" cy="450" r="248"/>
+    <path id="head" d="M 480 344 a 106 106 0 1 0 0.01 0 Z M 600 404 H 670 a 32 32 0 0 1 32 32 V 464 a 32 32 0 0 1 -32 32 H 600 Z"/>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="1024" height="1024" fill="url(#sky)"/>
+    <g>
+      <path fill="#C4D6CE" d="M0 580 H1024 V1024 H0 Z"/>
+      <path fill="#99C1B6" d="M0 646 Q 128 636 256 646 T 512 646 T 768 646 T 1024 646 V1024 H0 Z"/>
+      <path fill="#66A398" d="M0 722 Q 128 732 256 722 T 512 722 T 768 722 T 1024 722 V1024 H0 Z"/>
+      <path fill="#3F857C" d="M0 806 Q 128 796 256 806 T 512 806 T 768 806 T 1024 806 V1024 H0 Z"/>
+      <path fill="#256560" d="M0 892 Q 128 902 256 892 T 512 892 T 768 892 T 1024 892 V1024 H0 Z"/>
+    </g>
+    <g clip-path="url(#above)">
+      <ellipse cx="512" cy="470" rx="236" ry="240" fill="#223038" opacity="0.22" filter="url(#softShadow)"/>
+      <use href="#disc" fill="url(#yolk)"/>
+      <use href="#head" fill="#223038"/>
+    </g>
+    <g clip-path="url(#below)">
+      <use href="#disc" fill="#FFF000" opacity="0.38" transform="translate(18 0)"/>
+    </g>
+    <rect x="0" y="577" width="1024" height="6" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="100" y="100" width="824" height="824" rx="186" ry="186" fill="none" stroke="#223038" stroke-opacity="0.10" stroke-width="4"/>
+  </g>
+</svg>

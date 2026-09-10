@@ -1,0 +1,90 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "srgb:0.18039,0.18824,0.20784,1.00000",
+      "srgb:0.07451,0.07843,0.09020,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "blend-mode" : "normal",
+      "hidden" : false,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "eye.svg",
+          "name" : "eye",
+          "opacity" : 1
+        },
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "head.svg",
+          "name" : "head",
+          "opacity" : 1
+        },
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "body.svg",
+          "name" : "body",
+          "opacity" : 1
+        },
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "beak.svg",
+          "name" : "beak",
+          "opacity" : 1
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "hidden" : false,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "surface.svg",
+          "name" : "surface",
+          "opacity" : 1
+        },
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "strata.svg",
+          "name" : "strata",
+          "opacity" : 1
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.25
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

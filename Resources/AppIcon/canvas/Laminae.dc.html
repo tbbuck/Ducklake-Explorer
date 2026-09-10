@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+    body { margin: 0; background: #1E1F22; font-family: 'Hanken Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #E3E5EA; }
+    a { color: #3FA091; } a:hover { color: #7CC8BD; }
+  </style>
+</helmet>
+<div style="width: 440px; height: 600px; box-sizing: border-box; padding: 28px; background: #1E1F22; display: flex; flex-direction: column; align-items: center; gap: 22px;">
+  <svg width="360" height="360" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="186" ry="186"></rect></clipPath>
+      <clipPath id="disc"><circle cx="512" cy="500" r="270"></circle></clipPath>
+      <linearGradient id="sky" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#2E3035"></stop><stop offset="1" stop-color="#131417"></stop>
+      </linearGradient>
+      <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="16"></feGaussianBlur></filter>
+    </defs>
+    <g id="icon" clip-path="url(#tile)">
+      <rect width="1024" height="1024" fill="url(#sky)"></rect>
+      <ellipse cx="512" cy="530" rx="262" ry="266" fill="#000000" opacity="0.4" filter="url(#soft)"></ellipse>
+      <rect x="700" y="428" width="150" height="70" rx="35" fill="#E0A64C"></rect>
+      <g clip-path="url(#disc)">
+        <rect x="0" y="0" width="1024" height="1024" fill="#FFF45C"></rect>
+        <path fill="#FFF000" d="M0 344 Q 128 334 256 344 T 512 344 T 768 344 T 1024 344 V1024 H0 Z"></path>
+        <path fill="#F2D900" d="M0 440 Q 128 450 256 440 T 512 440 T 768 440 T 1024 440 V1024 H0 Z"></path>
+        <path fill="#E0BE00" d="M0 540 Q 128 530 256 540 T 512 540 T 768 540 T 1024 540 V1024 H0 Z"></path>
+        <path fill="#CBA600" d="M0 640 Q 128 650 256 640 T 512 640 T 768 640 T 1024 640 V1024 H0 Z"></path>
+        <path fill="#B48F00" d="M0 720 Q 128 712 256 720 T 512 720 T 768 720 T 1024 720 V1024 H0 Z"></path>
+      </g>
+      <circle cx="600" cy="410" r="30" fill="#131417"></circle>
+      <rect x="100" y="100" width="824" height="824" rx="186" ry="186" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="6"></rect>
+    </g>
+  </svg>
+  <div style="display: flex; align-items: flex-end; gap: 24px;">
+    <svg width="128" height="128" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="64" height="64" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="32" height="32" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="16" height="16" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 6px; align-self: stretch;">
+    <div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">B · Laminae</div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.45; color: #B4B8C0;">The duck itself is the core sample: one disc cut into snapshot layers, light at the surface and darkening with depth. Strongest single silhouette and the most Stratum of the set.</p>
+    <p style="margin: 0; font-size: 12px; line-height: 1.45; color: #8B9099;">Tradeoff: the layers flatten to a plain yellow disc below 32px; no lake in the picture.</p>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

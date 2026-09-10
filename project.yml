@@ -30,6 +30,10 @@ targets:
       - Sources/App
       - path: Resources/Fonts
         buildPhase: resources
+      # Icon Composer bundle (Liquid Glass icon; actool renders every size from it).
+      - path: Resources/AppIcon/AppIcon.icon
+        buildPhase: resources
+        type: file
     dependencies:
       - package: DuckLakeCore
         product: DuckDBKit
@@ -38,6 +42,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.moomoomoo.DuckLakeExplorer
         PRODUCT_NAME: DuckLake Explorer
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.developer-tools"
         # libduckdb is linked from Homebrew (absolute install name) for now.
         LIBRARY_SEARCH_PATHS:

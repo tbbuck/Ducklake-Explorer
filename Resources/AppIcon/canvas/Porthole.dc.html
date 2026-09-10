@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+    body { margin: 0; background: #1E1F22; font-family: 'Hanken Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #E3E5EA; }
+    a { color: #3FA091; } a:hover { color: #7CC8BD; }
+  </style>
+</helmet>
+<div style="width: 440px; height: 600px; box-sizing: border-box; padding: 28px; background: #1E1F22; display: flex; flex-direction: column; align-items: center; gap: 22px;">
+  <svg width="360" height="360" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="186" ry="186"></rect></clipPath>
+      <clipPath id="window"><circle cx="512" cy="512" r="316"></circle></clipPath>
+      <clipPath id="above"><rect x="0" y="0" width="1024" height="560"></rect></clipPath>
+      <clipPath id="below"><rect x="0" y="560" width="1024" height="464"></rect></clipPath>
+      <linearGradient id="sky" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#26282D"></stop><stop offset="1" stop-color="#131417"></stop>
+      </linearGradient>
+      <linearGradient id="insky" x1="0" y1="196" x2="0" y2="560" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#3A3D44"></stop><stop offset="1" stop-color="#1E1F22"></stop>
+      </linearGradient>
+      <radialGradient id="yolk" cx="440" cy="460" r="260" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#FFF45C"></stop><stop offset="0.55" stop-color="#FFF000"></stop><stop offset="1" stop-color="#F2D900"></stop>
+      </radialGradient>
+      <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"></feGaussianBlur></filter>
+      <filter id="glow" x="-20%" y="-300%" width="140%" height="700%"><feGaussianBlur stdDeviation="7"></feGaussianBlur></filter>
+    </defs>
+    <g id="icon" clip-path="url(#tile)">
+      <rect width="1024" height="1024" fill="url(#sky)"></rect>
+      <circle cx="512" cy="536" r="332" fill="#000000" opacity="0.45" filter="url(#soft)"></circle>
+      <g clip-path="url(#window)">
+        <rect width="1024" height="1024" fill="url(#insky)"></rect>
+        <path fill="#7CC8BD" d="M0 560 H1024 V1024 H0 Z"></path>
+        <path fill="#57ABA1" d="M0 620 Q 128 612 256 620 T 512 620 T 768 620 T 1024 620 V1024 H0 Z"></path>
+        <path fill="#3E8C83" d="M0 690 Q 128 698 256 690 T 512 690 T 768 690 T 1024 690 V1024 H0 Z"></path>
+        <path fill="#2E6E68" d="M0 770 Q 128 762 256 770 T 512 770 T 768 770 T 1024 770 V1024 H0 Z"></path>
+        <path fill="#204F4C" d="M0 860 Q 128 868 256 860 T 512 860 T 768 860 T 1024 860 V1024 H0 Z"></path>
+        <g clip-path="url(#above)">
+          <ellipse cx="485" cy="552" rx="116" ry="118" fill="#000000" opacity="0.35" filter="url(#soft)"></ellipse>
+          <rect x="670" y="432" width="70" height="34" rx="17" fill="#E0A64C"></rect>
+          <circle cx="485" cy="540" r="120" fill="url(#yolk)"></circle>
+          <circle cx="615" cy="445" r="70" fill="url(#yolk)"></circle>
+          <circle cx="642" cy="424" r="11" fill="#131417"></circle>
+        </g>
+        <g clip-path="url(#below)">
+          <circle cx="497" cy="540" r="120" fill="#FFF000" opacity="0.38"></circle>
+        </g>
+        <rect x="0" y="555" width="1024" height="10" fill="#DCEFEA" opacity="0.55" filter="url(#glow)"></rect>
+        <rect x="0" y="557" width="1024" height="6" fill="#EAF6F2"></rect>
+        <circle cx="512" cy="512" r="316" fill="none" stroke="#000000" stroke-opacity="0.5" stroke-width="40" filter="url(#soft)"></circle>
+      </g>
+      <circle cx="512" cy="512" r="330" fill="none" stroke="#DAD5C9" stroke-width="28"></circle>
+      <circle cx="512" cy="512" r="330" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="4"></circle>
+      <rect x="100" y="100" width="824" height="824" rx="186" ry="186" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="6"></rect>
+    </g>
+  </svg>
+  <div style="display: flex; align-items: flex-end; gap: 24px;">
+    <svg width="128" height="128" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="64" height="64" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="32" height="32" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+    <svg width="16" height="16" viewBox="0 0 1024 1024"><use href="#icon"></use></svg>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 6px; align-self: stretch;">
+    <div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">D · Porthole</div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.45; color: #B4B8C0;">A limestone porthole onto the lake: waterline, strata and a small duck inside the window. The ring says "explorer", and the framing keeps the scene contained on the dark tile.</p>
+    <p style="margin: 0; font-size: 12px; line-height: 1.45; color: #8B9099;">Tradeoff: the duck is small, so at 16px it is a ring with a yellow dot.</p>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

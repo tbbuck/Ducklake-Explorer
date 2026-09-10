@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <title>surface</title>
+  <!-- The submerged body seen through the water, the wake marks, and the waterline itself. -->
+  <g transform="scale(1.242718) translate(-100 -100)" fill-rule="nonzero">
+    <!-- lower segment of the body circle (470,520) r210, cut at y=580 -->
+    <path fill="#FFF000" fill-opacity="0.26" d="M 268.75 580 A 210 210 0 0 0 671.25 580 Z"/>
+    <g fill="none" stroke="#EAF6F2" stroke-opacity="0.38" stroke-width="5" stroke-linecap="round">
+      <path d="M 150 596 Q 200 604 246 598"/>
+      <path d="M 698 598 Q 745 604 796 596"/>
+    </g>
+    <rect x="-40" y="573" width="1104" height="14" fill="#DCEFEA" fill-opacity="0.22"/>
+    <rect x="-40" y="577" width="1104" height="6" fill="#EAF6F2"/>
+  </g>
+</svg>
