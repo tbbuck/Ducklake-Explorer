@@ -76,10 +76,13 @@ public actor LakeSession {
         return result
     }
 
-    /// Runs a read-only query, optionally capping collected rows.
+    /// Runs a read-only query, optionally capping collected rows. Throws `CancellationError`
+    /// without touching the engine if the calling task was cancelled before the actor reached
+    /// it — so a query superseded while queued behind another never actually runs.
     @discardableResult
     public func query(_ sql: String, maxRows: Int? = nil) throws -> QueryResult {
-        try db.run(sql, maxRows: maxRows)
+        try Task.checkCancellation()
+        return try db.run(sql, maxRows: maxRows)
     }
 
     /// Re-attaches the lake as of `version` (nil = latest) so schema, files, and queries all

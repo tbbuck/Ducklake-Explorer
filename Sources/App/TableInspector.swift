@@ -13,9 +13,8 @@ struct TableInspector: View {
     @State private var files: [DataFile] = []
     @State private var rowCount: String = "…"
     @State private var columnCount: String = "…"
-    // Slower (actual data) — its own loader
+    // Slower (actual data) — loads separately; its spinner is driven by model.loadingTableID
     @State private var sample: QueryResult?
-    @State private var sampleLoading = false
     @State private var sampleError: String?
 
     private var dataFiles: [DataFile] { files.filter { $0.kind == .data } }
@@ -82,7 +81,7 @@ struct TableInspector: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                if sampleLoading {
+                if model.loadingTableID == node.id {
                     ProgressView().controlSize(.small)
                 }
             }
@@ -111,12 +110,14 @@ struct TableInspector: View {
                 }
             }
         }
+        if Task.isCancelled { return }   // a newer table superseded this load
         var rows = "—"
         if let r = try? await model.query(
             "SELECT estimated_size FROM duckdb_tables() WHERE database_name = 'lake' AND table_name = '\(name)';"),
            let s = r.scalarString, let n = Int64(s) {
             rows = Format.count(n)
         }
+        if Task.isCancelled { return }
         withAnimation(.easeInOut(duration: 0.2)) {
             files = parsed
             rowCount = rows
@@ -127,21 +128,23 @@ struct TableInspector: View {
     /// The actual data sample — slower (may hit S3), so it carries its own loader and never
     /// holds up the metadata above.
     private func loadSample() async {
-        sampleLoading = true
         sampleError = nil
         sample = nil
         withAnimation(.easeInOut(duration: 0.2)) { model.loadingTableID = node.id }
         defer {
-            sampleLoading = false
+            // Clear the spinner only if we still own it — a newer selection may have taken over.
             if model.loadingTableID == node.id {
                 withAnimation(.easeInOut(duration: 0.2)) { model.loadingTableID = nil }
             }
         }
         do {
             let result = try await model.query("SELECT * FROM \"\(node.name)\" LIMIT 200;", maxRows: 200)
+            try Task.checkCancellation()
             withAnimation(.easeInOut(duration: 0.2)) { sample = result }
+        } catch is CancellationError {
+            // superseded while queued — let the newer load populate the view
         } catch {
-            sampleError = String(describing: error)
+            if !Task.isCancelled { sampleError = String(describing: error) }  // real error, still current
         }
     }
 }

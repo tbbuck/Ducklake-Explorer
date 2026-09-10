@@ -58,7 +58,7 @@ private struct SchemaRow: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            model.selectedNodeID = node.id    // select immediately (no double-click delay)
+            model.selectedNodeID = node.id    // select immediately; the previous load cancels itself
             if isBranch {
                 let now = Date()
                 if now.timeIntervalSince(lastTapTime) < 0.35 { toggle() }   // double-click toggles
