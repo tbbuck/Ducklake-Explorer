@@ -28,6 +28,7 @@ struct SchemaTree: View {
 private struct SchemaRow: View {
     @Environment(AppModel.self) private var model
     let row: SchemaRowItem
+    @State private var lastTapTime: Date = .distantPast
 
     private var node: CatalogNode { row.node }
     private var isBranch: Bool { !(node.children ?? []).isEmpty }
@@ -38,10 +39,7 @@ private struct SchemaRow: View {
         HStack(spacing: 4) {
             Color.clear.frame(width: CGFloat(row.depth) * 13, height: 1)
             chevron
-            Image(systemName: node.symbol)
-                .font(.system(size: 11))
-                .foregroundStyle(node.isGeometry ? Palette.geometry : Palette.textTertiary)
-                .frame(width: 16)
+            iconView
             Text(node.name)
                 .font(node.kind == .column ? .stratumMono(11) : .stratumUI(12, .semibold))
                 .foregroundStyle(Palette.textPrimary).lineLimit(1)
@@ -59,11 +57,13 @@ private struct SchemaRow: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            if isBranch { toggle() }          // double-click toggles
-        }
-        .onTapGesture(count: 1) {
-            model.selectedNodeID = node.id    // single click just selects
+        .onTapGesture {
+            model.selectedNodeID = node.id    // select immediately (no double-click delay)
+            if isBranch {
+                let now = Date()
+                if now.timeIntervalSince(lastTapTime) < 0.35 { toggle() }   // double-click toggles
+                lastTapTime = now
+            }
         }
         .contextMenu {
             if node.kind != .catalog && node.kind != .schema {
@@ -84,6 +84,24 @@ private struct SchemaRow: View {
         } else {
             Color.clear.frame(width: 12, height: 1)
         }
+    }
+
+    /// The table icon, swapped for a spinner (same width, animated) while this table's
+    /// sample data is loading.
+    @ViewBuilder private var iconView: some View {
+        ZStack {
+            if node.kind == .table, model.loadingTableID == node.id {
+                ProgressView().controlSize(.small).scaleEffect(0.6)
+                    .transition(.opacity)
+            } else {
+                Image(systemName: node.symbol)
+                    .font(.system(size: 11))
+                    .foregroundStyle(node.isGeometry ? Palette.geometry : Palette.textTertiary)
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: 16, height: 16)
+        .animation(.easeInOut(duration: 0.2), value: model.loadingTableID == node.id)
     }
 
     private func toggle() {

@@ -130,7 +130,13 @@ struct TableInspector: View {
         sampleLoading = true
         sampleError = nil
         sample = nil
-        defer { sampleLoading = false }
+        withAnimation(.easeInOut(duration: 0.2)) { model.loadingTableID = node.id }
+        defer {
+            sampleLoading = false
+            if model.loadingTableID == node.id {
+                withAnimation(.easeInOut(duration: 0.2)) { model.loadingTableID = nil }
+            }
+        }
         do {
             let result = try await model.query("SELECT * FROM \"\(node.name)\" LIMIT 200;", maxRows: 200)
             withAnimation(.easeInOut(duration: 0.2)) { sample = result }

@@ -17,6 +17,7 @@ final class AppModel {
     private(set) var schemaRoots: [CatalogNode] = []
     var activeSnapshot: Snapshot?
     var selectedNodeID: String?
+    var loadingTableID: String?          // the table whose sample data the inspector is loading
     var expandedNodeIDs: Set<String> = []
 
     // Workbench
