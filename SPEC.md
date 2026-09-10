@@ -217,5 +217,6 @@ For a selected table:
    `extension_directory`, fix the dylib install name), so end users need neither Homebrew
    nor a network install. Dev builds link Homebrew and use `~/.duckdb/extensions`.
 4. **macOS minimum** — ✅ resolved: **macOS 26** (matches the Homebrew libduckdb build).
-5. **Map provider** — MapLibre Native + MapTiler (matches tree map prefs) vs MapKit.
-6. **Raw metadata browsing** — is the `ducklake_*` catalog-table view in v1 or later?
+5. **Map provider** — ✅ resolved: **MapLibre GL + MapTiler** in a WKWebView (the native
+   SDK deferred as higher-risk on macOS).
+6. **Raw metadata browsing** — ✅ resolved: shipped as the **MetadataBrowser** (Meta mode).

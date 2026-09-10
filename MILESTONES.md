@@ -13,6 +13,29 @@ unit gets tests; commit per logical unit.
 
 ---
 
+## Status — 2026-09-10
+
+Built and committed (all read-only, working on a real **2,295-snapshot** lake whose data
+lives on S3):
+
+- **M0–M4 complete.** Engine (`DuckDBKit`: typed chunk reader, `LakeSession` actor,
+  time-travel; 16 tests), the Stratum design system, the three-pane shell, HistoryRail,
+  SchemaTree, TableInspector (metrics + CoreSample + **catalog stats**: min→max, nulls),
+  the Query Workbench (**`NSTableView` ResultsGrid**, live S3 data), and **real
+  time-travel** — selecting a snapshot re-attaches at that version so schema/inspector/
+  workbench all reflect "as of vN", schema evolution included.
+- **Also delivered (some ahead of the M5 plan):** SnapshotDiff, ConnectView + recents, the
+  geometry **Map** (MapLibre GL + MapTiler, BNG→4326 reprojection), and the
+  **MetadataBrowser**. The detail pane now has five modes: **Inspect · Query · Diff · Map · Meta**.
+- Remote S3 data works today (httpfs/aws + an existing DuckDB secret), so the SecretPicker
+  is now optional.
+
+**Remaining:** column-distribution histograms; polish (auto-scroll the rail to the active
+snapshot, SQL syntax highlighting, keyboard nav); and **M5 packaging** — bundle `libduckdb`
++ extensions and Developer-ID sign/notarize so it runs on a clean Mac.
+
+---
+
 ## M0 — Spike & scaffold  *(de-risk the engine link)* — ✅ done
 **Goal:** prove Swift can drive the local `libduckdb` and read a DuckLake end-to-end.
 - **Deliverables**
