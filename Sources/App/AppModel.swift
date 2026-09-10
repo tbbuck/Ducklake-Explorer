@@ -50,7 +50,9 @@ final class AppModel {
         do {
             let session = try LakeSession()
             try await session.loadCoreExtensions()
-            try await session.attach(.duckDBFile(path))
+            let source: LakeSource = path.lowercased().hasSuffix(".sqlite")
+                ? .sqliteFile(path) : .duckDBFile(path)
+            try await session.attach(source)
             self.session = session
             self.lakePath = path
 
@@ -132,7 +134,9 @@ final class AppModel {
             id: "lake", name: lakeName ?? "lake", kind: .catalog, dataType: nil, nullable: false,
             children: [schema])]
         expandedNodeIDs = Self.branchIDs(schemaRoots)   // open fully by default
-        if selectedNodeID == nil { selectedNodeID = tableNodes.first?.id }
+        if selectedNodeID == nil {   // land on the richest table for a useful first view
+            selectedNodeID = tableNodes.max { ($0.children?.count ?? 0) < ($1.children?.count ?? 0) }?.id
+        }
     }
 
     private static func branchIDs(_ nodes: [CatalogNode]) -> Set<String> {

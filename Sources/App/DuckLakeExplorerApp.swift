@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 @main
 struct DuckLakeExplorerApp: App {
@@ -12,14 +13,17 @@ struct DuckLakeExplorerApp: App {
         WindowGroup {
             ExplorerView()
                 .environment(model)
-                .frame(minWidth: 1040, minHeight: 660)
+                .frame(minWidth: 1180, minHeight: 720)
                 .preferredColorScheme(model.appearanceOverride)
                 .task {
                     #if DEBUG
-                    // Dev convenience: auto-open the committed fixture so the shell is
-                    // populated. Replaced by the ConnectView open flow.
+                    // Dev convenience: auto-open a lake so the shell is populated — the
+                    // real (remote-data) herd lake if present, else the committed fixture.
+                    // Replaced by the ConnectView open flow.
                     if model.lakePath == nil {
-                        await model.open(path: "/Users/tom/Code/Claude/ducklake-explorer/Fixtures/sample.ducklake")
+                        let herd = "/Users/tom/Code/Claude/ducklake-explorer/herd-lake.sqlite"
+                        let fixture = "/Users/tom/Code/Claude/ducklake-explorer/Fixtures/sample.ducklake"
+                        await model.open(path: FileManager.default.fileExists(atPath: herd) ? herd : fixture)
                     }
                     #endif
                 }

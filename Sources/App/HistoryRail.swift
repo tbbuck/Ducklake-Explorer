@@ -49,7 +49,7 @@ struct SnapshotLamina: View {
             marker
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text("v\(snapshot.id)")
+                    Text(verbatim: "v\(snapshot.id)")
                         .font(.stratumMono(12, .semibold))
                         .foregroundStyle(isActive ? Palette.accent : Palette.textPrimary)
                     Badge(text: snapshot.changeTag, color: tagColor)

@@ -36,7 +36,7 @@ struct SnapshotChip: View {
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: "clock.arrow.circlepath").font(.system(size: 10))
-            Text(snapshot.map { "as of v\($0.id)" } ?? "latest").font(.stratumMono(11, .medium))
+            Text(verbatim: snapshot.map { "as of v\($0.id)" } ?? "latest").font(.stratumMono(11, .medium))
         }
         .foregroundStyle(Palette.onCool)
         .padding(.horizontal, 11).padding(.vertical, 5)

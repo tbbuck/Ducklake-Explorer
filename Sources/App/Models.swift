@@ -55,3 +55,15 @@ struct CatalogNode: Identifiable, Hashable, Sendable {
         }
     }
 }
+
+/// One physical file backing a table — a Parquet data file or its delete (erosion) file.
+/// Sourced from `ducklake_list_files` (catalog metadata; readable even when data is remote).
+struct DataFile: Identifiable, Sendable {
+    enum Kind: Sendable { case data, delete }
+    let id: String        // the file path (unique per table)
+    let path: String
+    let sizeBytes: Int64
+    let kind: Kind
+
+    var name: String { (path as NSString).lastPathComponent }
+}
