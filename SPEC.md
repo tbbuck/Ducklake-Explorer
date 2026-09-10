@@ -77,7 +77,13 @@ keeps data in DuckLake. Representative tasks:
 
 ### 5.1 Connect & attach
 - Open a **local** catalog file (`.ducklake`/DuckDB or SQLite) via file picker; open a
-  **remote** one by URL (`s3://…`, `https://…`) with an associated secret.
+  **remote** one by URL (`s3://…`, `https://…`).
+- **Remote storage auth (v1): choose an existing DuckDB secret.** The connection UI lists
+  the DuckDB secret manager (`duckdb_secrets()`) — name, type, provider
+  (`config`/`credential_chain`), scope, persistence — and the user picks the one that
+  grants read access to the lake's files (a secret whose scope covers the catalog URL is
+  flagged). The app **does not enter, create, or store credentials** in v1 (see 6.4);
+  a bare `ATTACH 'ducklake:<secret>'` can also carry the whole connection config.
 - All attaches are **read-only** and enforced as such:
   - DuckDB: `ATTACH 'ducklake:catalog.ducklake' AS lake (READ_ONLY);`
   - SQLite: `ATTACH 'ducklake:sqlite:catalog.sqlite' AS lake (READ_ONLY);`
@@ -85,8 +91,8 @@ keeps data in DuckLake. Representative tasks:
 - Detect backend and surface `ducklake_settings()` (catalog_type, extension_version,
   data_path). Warn (don't crash) if the extension version is newer/older than the
   linked engine expects.
-- **Recent connections** list; re-open with one click. Never persist secrets in plain
-  text (see 6.4).
+- **Recent connections** list; re-open with one click (recents store the catalog URL and
+  the chosen secret *name* only — never secret material; see 6.4).
 - Multiple catalogs attachable in one window (switch between lakes).
 
 ### 5.2 Catalog browser
@@ -159,9 +165,13 @@ For a selected table:
 
 ### 6.4 Security & privacy
 - Read-only by construction. No telemetry.
-- Remote credentials handled as DuckDB **secrets**; store user-entered secrets in the
-  **macOS Keychain** and materialise **temporary** DuckDB secrets per session rather
-  than relying on DuckDB's on-disk persistent secret store.
+- **Remote credentials are delegated to DuckDB's secret manager.** v1 only *selects* an
+  existing DuckDB secret (persistent in `~/.duckdb`, or a session secret) to authorise
+  storage access — the app never accepts, displays, or persists credential material, and
+  keeps only the chosen secret's **name** in recents.
+- *Post-v1:* optionally accept user-entered credentials, holding them in the **macOS
+  Keychain** and materialising a **temporary** DuckDB secret per session rather than
+  DuckDB's on-disk persistent secret store.
 
 ## 7. Architecture
 

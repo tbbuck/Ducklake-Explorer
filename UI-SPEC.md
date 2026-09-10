@@ -78,8 +78,8 @@
 - **`DuckDBSecret` (model)** — `name, type, provider, persistent, storage, scope`. *Maps a `duckdb_secrets()` row.*
 - **`DuckDBSecretField`** — the read-only summary on Connect that opens the picker. *Shows the chosen secret + scope.*
 
-> Divergence from SPEC §6.4: v1 relies on DuckDB's own secret manager rather than a
-> Keychain-entry form. Confirm and I'll fold this into SPEC §5.1/§6.4.
+> Per SPEC §5.1/§6.4: v1 relies on DuckDB's own secret manager (selection only); the app
+> never enters or stores credentials. Keychain-based entry is a post-v1 option.
 
 ## Metadata mode — raw `ducklake_*` catalog tables
 
