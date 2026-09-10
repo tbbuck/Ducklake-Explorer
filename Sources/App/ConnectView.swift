@@ -41,7 +41,10 @@ struct ConnectView: View {
                 ScrollView {
                     VStack(spacing: 8) {
                         ForEach(model.recents) { recent in
-                            RecentLakeCard(recent: recent) { Task { await model.open(path: recent.path) } }
+                            RecentLakeCard(
+                                recent: recent,
+                                open: { Task { await model.open(path: recent.path) } },
+                                remove: { model.removeRecent(recent) })
                         }
                     }
                     .padding(.vertical, 8)
@@ -87,13 +90,16 @@ struct ConnectView: View {
     }
 }
 
-/// One remembered lake — click to reopen. Never shows credentials.
+/// One remembered lake — click to reopen. Never shows credentials. A subtle circle-close
+/// appears in the top-right on hover to forget the lake without opening it.
 struct RecentLakeCard: View {
     let recent: RecentConnection
-    let action: () -> Void
+    let open: () -> Void
+    let remove: () -> Void
+    @State private var hovering = false
 
     var body: some View {
-        Button(action: action) {
+        Button(action: open) {
             HStack(spacing: 10) {
                 Image(systemName: recent.kind == "sqlite" ? "cylinder" : "cylinder.split.1x2")
                     .font(.system(size: 18)).foregroundStyle(Palette.accent).frame(width: 24)
@@ -113,6 +119,20 @@ struct RecentLakeCard: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.hairline))
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            Button(action: remove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.textTertiary)
+                    .padding(6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Forget this lake")
+            .opacity(hovering ? 1 : 0)
+            .animation(.easeInOut(duration: 0.15), value: hovering)
+        }
+        .onHover { hovering = $0 }
     }
 
     private static let relative = RelativeDateTimeFormatter()

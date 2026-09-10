@@ -163,6 +163,16 @@ final class AppModel {
             path: path, name: (path as NSString).lastPathComponent, kind: kind,
             snapshotCount: snapshots.count, lastOpened: Date())
         recents = Array(([entry] + recents.filter { $0.path != path }).prefix(12))
+        persistRecents()
+    }
+
+    /// Removes a lake from the recent list (persisted); leaves any open lake alone.
+    func removeRecent(_ recent: RecentConnection) {
+        recents.removeAll { $0.path == recent.path }
+        persistRecents()
+    }
+
+    private func persistRecents() {
         if let data = try? JSONEncoder().encode(recents) {
             UserDefaults.standard.set(data, forKey: recentsKey)
         }
