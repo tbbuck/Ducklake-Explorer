@@ -61,10 +61,10 @@ struct ResultsGrid: NSViewRepresentable {
             for column in table.tableColumns { table.removeTableColumn(column) }
             for (index, column) in result.columns.enumerated() {
                 let tableColumn = NSTableColumn(identifier: .init("c\(index)"))
-                let header = StratumHeaderCell(textCell: column.name)
-                header.typeText = column.type.label
-                header.typeColor = Self.typeAccent(column.type)
-                tableColumn.headerCell = header
+                // Encode name + type in the cell's own title ("name\ntype"): NSCell copies its
+                // built-in title correctly, whereas Swift ivars added to an NSCell subclass are
+                // bitwise-copied without a retain and double-freed on teardown (crash).
+                tableColumn.headerCell = StratumHeaderCell(textCell: "\(column.name)\n\(column.type.label)")
                 tableColumn.width = Self.width(for: index, in: result)
                 tableColumn.minWidth = 56
                 tableColumn.resizingMask = .userResizingMask
@@ -114,20 +114,12 @@ struct ResultsGrid: NSViewRepresentable {
             return .stratumGrid(0x1E7A72, 0x3FA091)                          // ink-teal / "green"
         }
 
-        /// The header's type label colour: brass, but teal for geometry/boolean (per tokens).
-        static func typeAccent(_ type: DuckTypeID) -> NSColor {
-            switch type {
-            case .geometry, .boolean: return .stratumGrid(0x1E7A72, 0x3FA091)
-            default:                  return .stratumGrid(0xA97B36, 0xD6A55D)
-            }
-        }
-
-        /// A sensible default width from the header name and a sample of the values, capped so
-        /// varchars (measured up to 64 chars) can't run away.
+        /// A sensible default width from the header (name and type) and a sample of the values,
+        /// capped so varchars (measured up to 64 chars) can't run away.
         static func width(for index: Int, in result: QueryResult) -> CGFloat {
             let column = result.columns[index]
             let charW = ("0" as NSString).size(withAttributes: [.font: stratumMonoFont(12)]).width
-            var maxChars = column.name.count
+            var maxChars = max(column.name.count, column.type.label.count)
             let sample = min(result.rows.count, 200)
             for r in 0..<sample {
                 let cell = result.rows[r][index]
@@ -141,11 +133,11 @@ struct ResultsGrid: NSViewRepresentable {
     }
 }
 
-/// A flat, two-line column header: the column name over its data type, styled per Stratum.
+/// A flat, two-line column header: the column name over its data type. Name and type ride in
+/// the cell's own `title` as "name\ntype" — deliberately no Swift stored properties, because
+/// NSCell's bitwise `copyWithZone:` doesn't retain subclass ivars and double-frees them on
+/// teardown (the close→reopen crash).
 final class StratumHeaderCell: NSTableHeaderCell {
-    var typeText: String = ""
-    var typeColor: NSColor = .secondaryLabelColor
-
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
         guard cellFrame.isValidForDrawing else { return }
         NSColor.stratumGrid(0xFCFBF6, 0x303236).setFill()          // panel-2 header ground
@@ -159,19 +151,31 @@ final class StratumHeaderCell: NSTableHeaderCell {
 
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
         guard cellFrame.isValidForDrawing else { return }
+        let parts = stringValue.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        let name = parts.first.map(String.init) ?? stringValue
+        let type = parts.count > 1 ? String(parts[1]) : ""
         let inset: CGFloat = 9
         let width = max(0, cellFrame.width - inset - 6)
         let flipped = controlView.isFlipped
         // Name on top, type below — positioned from the visual top of the header, either flip.
         let nameY = flipped ? cellFrame.minY + 9 : cellFrame.maxY - 24
         let typeY = flipped ? cellFrame.minY + 27 : cellFrame.maxY - 41
-        (stringValue as NSString).draw(
+        (name as NSString).draw(
             in: NSRect(x: cellFrame.minX + inset, y: nameY, width: width, height: 15),
             withAttributes: [.font: stratumMonoFont(11, semibold: true),
                              .foregroundColor: NSColor.stratumGrid(0x223038, 0xE3E5EA)])
-        (typeText as NSString).draw(
-            in: NSRect(x: cellFrame.minX + inset, y: typeY, width: width, height: 14),
-            withAttributes: [.font: stratumMonoFont(9), .foregroundColor: typeColor])
+        if !type.isEmpty {
+            (type as NSString).draw(
+                in: NSRect(x: cellFrame.minX + inset, y: typeY, width: width, height: 14),
+                withAttributes: [.font: stratumMonoFont(9), .foregroundColor: Self.typeColor(type)])
+        }
+    }
+
+    /// Type-label colour derived from the label text: brass, teal for geometry/boolean.
+    static func typeColor(_ label: String) -> NSColor {
+        let u = label.uppercased()
+        if u.contains("GEOMETRY") || u.contains("BOOL") { return .stratumGrid(0x1E7A72, 0x3FA091) }
+        return .stratumGrid(0xA97B36, 0xD6A55D)
     }
 }
 
