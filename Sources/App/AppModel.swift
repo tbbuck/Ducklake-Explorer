@@ -20,7 +20,7 @@ final class AppModel {
     var expandedNodeIDs: Set<String> = []
 
     // Workbench
-    enum DetailMode: String, CaseIterable, Sendable { case inspect = "Inspect", query = "Query" }
+    enum DetailMode: String, CaseIterable, Sendable { case inspect = "Inspect", query = "Query", diff = "Diff" }
     var detailMode: DetailMode = .inspect
     var sql: String = ""
     private(set) var queryResult: QueryResult?

@@ -67,3 +67,17 @@ struct DataFile: Identifiable, Sendable {
 
     var name: String { (path as NSString).lastPathComponent }
 }
+
+/// A schema diff between two snapshots, computed from the catalog's version ranges.
+struct SnapshotDiff: Sendable {
+    var tablesAdded: [String] = []
+    var tablesDropped: [String] = []
+    var columnsAdded: [String] = []       // "table.column"
+    var columnsDropped: [String] = []     // "table.column"
+    var columnsChanged: [String] = []     // "table.column: oldType → newType"
+
+    var isEmpty: Bool {
+        tablesAdded.isEmpty && tablesDropped.isEmpty && columnsAdded.isEmpty
+            && columnsDropped.isEmpty && columnsChanged.isEmpty
+    }
+}

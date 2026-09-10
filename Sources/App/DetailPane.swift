@@ -8,6 +8,8 @@ struct DetailPane: View {
         Group {
             if model.detailMode == .query {
                 WorkbenchView()
+            } else if model.detailMode == .diff {
+                SnapshotDiffView()
             } else if let node = model.selectedNode, node.kind == .table || node.kind == .view {
                 TableInspector(node: node)
             } else {
