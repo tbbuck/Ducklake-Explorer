@@ -11,7 +11,7 @@ let duckdbLib = "/opt/homebrew/opt/duckdb/lib"
 
 let package = Package(
     name: "DuckLakeCore",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS("26.0")],
     products: [
         .library(name: "DuckDBKit", targets: ["DuckDBKit"]),
     ],

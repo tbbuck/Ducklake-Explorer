@@ -13,7 +13,7 @@ unit gets tests; commit per logical unit.
 
 ---
 
-## M0 — Spike & scaffold  *(de-risk the engine link)*
+## M0 — Spike & scaffold  *(de-risk the engine link)* — ✅ done
 **Goal:** prove Swift can drive the local `libduckdb` and read a DuckLake end-to-end.
 - **Deliverables**
   - SwiftUI app skeleton (single window) + Xcode/SwiftPM project.
@@ -22,11 +22,13 @@ unit gets tests; commit per logical unit.
     interrupt.
   - Runtime `LOAD ducklake` (+ `spatial`), then: `ATTACH 'ducklake:…' (READ_ONLY)`, run a
     `SELECT`, and read `snapshots()` — printed to a scratch view.
-  - **Test-fixture generator** (`claude-scripts/`): builds a small lake with ≥2 snapshots,
-    a partitioned table, a delete file, and a `GEOMETRY` column.
-- **Acceptance:** a query returns rows into Swift via the C API; extensions load (document
-  the offline/bundling path even if dev relies on `~/.duckdb`).
-- **Demo:** launch → attach fixture → see rows + snapshot list.
+  - **Test-fixture generator** (`Fixtures/`): builds a small lake with 11 snapshots,
+    a partitioned + sorted table, a delete, schema evolution, and a `GEOMETRY` column.
+- **Acceptance:** ✅ a query returns rows into Swift via the C API (6/6 `swift test` green);
+  `ducklake`/`spatial` load from `~/.duckdb/extensions`; the app compiles, links libduckdb,
+  and codesigns ad-hoc. Distribution bundling of libduckdb + extensions is deferred to M5.
+- **Demo:** launch → attach fixture → see rows + snapshot list. *(Deferred: the visual UI
+  is on hold pending a design direction; the scratch `ContentView` is a placeholder.)*
 
 ## M1 — Open & browse  *(shared foundation)*
 **Goal:** a real connection flow and a schema tree.
@@ -82,9 +84,11 @@ unit gets tests; commit per logical unit.
     (`httpfs`/`aws`).
   - **Geometry**: WKB→WKT, `GEOMETRY` detection, map preview (provider per SPEC §9.5).
   - Preferences (extension directory / bundling, default export format); app icon.
-  - **Extension bundling** + Developer-ID signing & notarization (pending SPEC §9.2–9.3).
+  - **Bundle `libduckdb` + extension binaries** into the app (fix the dylib install name,
+    set `extension_directory`) so users need neither Homebrew nor a network install; then
+    Developer-ID signing & notarization (SPEC §9.2–9.3).
 - **Acceptance:** open a real S3-backed lake read-only with credentials; render a geometry
-  column on a map; signed app launches on a clean machine.
+  column on a map; signed app launches on a clean machine **with no Homebrew/DuckDB installed**.
 - **Demo:** open a remote lake, map a geometry, export a result.
 
 ---

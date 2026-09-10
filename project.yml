@@ -2,7 +2,7 @@ name: DuckLakeExplorer
 options:
   bundleIdPrefix: com.moomoomoo
   deploymentTarget:
-    macOS: "15.0"
+    macOS: "26.0"
   createIntermediateGroups: true
 
 # Regenerate the .xcodeproj (which is gitignored) with `xcodegen generate`.

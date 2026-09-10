@@ -168,9 +168,11 @@ For a selected table:
 - **Engine**: link the **local** `libduckdb` in-process (confirmed at
   `/opt/homebrew/opt/duckdb/lib/libduckdb.dylib`, header at
   `/opt/homebrew/opt/duckdb/include/duckdb.h`, v1.5.5). Access via the C API through a
-  small Swift wrapper (bridging header / module map). This honours "use the locally
-  installed DuckDB" while keeping typed, streaming, in-process results — no CLI
-  subprocess, no `~/.duckdbrc` side-effects, no output parsing.
+  small Swift wrapper — the `DuckDBKit` SPM package with a `CDuckDB` system module map
+  (see `Package.swift`). This honours "use the locally installed DuckDB" while keeping
+  typed, streaming, in-process results — no CLI subprocess, no `~/.duckdbrc`
+  side-effects, no output parsing. The Homebrew dylib is built for macOS 26, which sets
+  the deployment floor (see §8); distribution bundles its own copy (§9).
 - **Extensions**: `ducklake` is required; `httpfs` + `aws` for remote; `spatial` for
   geometry; `sqlite_scanner` for SQLite catalogs. These are **loadable** (not baked
   into the dylib), installed under `~/.duckdb/extensions`. Dev builds may rely on the
@@ -185,9 +187,11 @@ For a selected table:
 ## 8. Constraints & dependencies
 
 - DuckDB **≥ 1.5.5**, linked locally; extensions as above.
-- macOS **14+** proposed (modern SwiftUI / Observation); **Apple Silicon first**.
-- Swift + SwiftUI + a thin AppKit layer. No third-party dependency without cause; a
-  small C-API Swift wrapper is vendored rather than pulled in.
+- macOS **26+** (Tahoe); **Apple Silicon first**. The floor is 26 because Homebrew's
+  `libduckdb` is built for macOS 26 — matching it avoids any load-time version mismatch.
+- Swift 6 + SwiftUI + a thin AppKit layer. Engine layer is the `DuckDBKit` SPM package;
+  the app project is generated from `project.yml` by **XcodeGen** (the one build-tool
+  dependency). No third-party runtime dependencies without cause.
 - Test fixtures: a script-built sample DuckLake with multiple snapshots, a partitioned
   table, delete files, and a geometry column (created in M0, reused by all milestones).
 
@@ -196,12 +200,12 @@ For a selected table:
 1. **Backend scope wording** — confirmed reading: DuckDB/SQLite catalogs, *local or on
    object storage*, with credential handling; no Postgres/MySQL. If "remote" was meant
    as *data files only, catalog stays local*, we can narrow the connection UI.
-2. **Distribution & sandbox** — Developer-ID + notarized, **non-sandboxed** is assumed
-   (needed for arbitrary file access, loadable extensions, and outbound S3). Confirm,
-   or App Store sandbox changes the extension/fs/secret story materially.
-3. **Extension delivery** — bundle pinned `ducklake`/`httpfs`/`aws`/`spatial`/`sqlite_scanner`
-   binaries with the app, or require the user's `~/.duckdb` install? Bundling is needed
-   for a clean, offline, signed app.
-4. **macOS minimum** — 14 (Sonoma) vs 15 (Sequoia)?
+2. **Distribution & sandbox** — ✅ resolved: **Developer-ID + notarized, non-sandboxed**
+   (M5), which suits arbitrary file access, loadable extensions, and outbound S3.
+3. **Bundling for distribution** — ship the app with its own pinned `libduckdb` *and*
+   the `ducklake`/`httpfs`/`aws`/`spatial`/`sqlite_scanner` extension binaries (set
+   `extension_directory`, fix the dylib install name), so end users need neither Homebrew
+   nor a network install. Dev builds link Homebrew and use `~/.duckdb/extensions`.
+4. **macOS minimum** — ✅ resolved: **macOS 26** (matches the Homebrew libduckdb build).
 5. **Map provider** — MapLibre Native + MapTiler (matches tree map prefs) vs MapKit.
 6. **Raw metadata browsing** — is the `ducklake_*` catalog-table view in v1 or later?
