@@ -34,7 +34,7 @@ final class ExplorerModel {
                 SELECT table_name FROM information_schema.tables
                 WHERE table_catalog = 'lake' AND table_schema = 'main'
                 ORDER BY table_name;
-                """).rows.compactMap { $0.first ?? nil }
+                """).rows.compactMap { $0.first?.displayString }
             snapshots = try db.run("""
                 SELECT snapshot_id, snapshot_time, changes
                 FROM ducklake_snapshots('lake') ORDER BY snapshot_id;
@@ -117,9 +117,9 @@ struct ContentView: View {
                     Section("Snapshots (\(snapshots.rowCount))") {
                         ForEach(Array(snapshots.rows.enumerated()), id: \.offset) { _, row in
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("v\(row.first.flatMap { $0 } ?? "?")")
+                                Text("v\(row.first?.displayString ?? "?")")
                                     .font(.callout.monospacedDigit())
-                                Text(row.count > 1 ? (row[1] ?? "") : "")
+                                Text(row.count > 1 ? row[1].displayString : "")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -136,8 +136,8 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let settings = model.settings, let row = settings.rows.first {
                 HStack(spacing: 16) {
-                    ForEach(Array(settings.columns.enumerated()), id: \.offset) { i, name in
-                        Label("\(name): \(row[i] ?? "—")", systemImage: "info.circle")
+                    ForEach(Array(settings.columnNames.enumerated()), id: \.offset) { i, name in
+                        Label("\(name): \(row[i].displayString)", systemImage: "info.circle")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -189,16 +189,16 @@ struct ResultGridView: View {
         ScrollView([.horizontal, .vertical]) {
             Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 3) {
                 GridRow {
-                    ForEach(result.columns, id: \.self) { column in
-                        Text(column).font(.caption.bold())
+                    ForEach(result.columns, id: \.name) { column in
+                        Text(column.name).font(.caption.bold())
                     }
                 }
                 ForEach(Array(result.rows.enumerated()), id: \.offset) { _, row in
                     GridRow {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            Text(cell ?? "NULL")
+                            Text(cell.displayString)
                                 .font(.system(.body, design: .monospaced))
-                                .foregroundStyle(cell == nil ? .secondary : .primary)
+                                .foregroundStyle(cell.isNull ? .secondary : .primary)
                                 .lineLimit(1)
                         }
                     }
