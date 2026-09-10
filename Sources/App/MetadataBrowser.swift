@@ -28,6 +28,7 @@ struct CatalogTableList: View {
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .frame(maxWidth: .infinity)
                             .background(model.metaTable == table.name ? Palette.accentSoft : .clear)
+                            .contentShape(Rectangle())   // whole row is the hit target, not just the text
                         }
                         .buttonStyle(.plain)
                     }
