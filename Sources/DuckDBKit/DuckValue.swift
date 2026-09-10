@@ -116,6 +116,21 @@ public enum DuckValue: Sendable, Equatable {
 
     public var isNull: Bool { self == .null }
 
+    /// The signed-integer payload, if this is an integer value (unsigned promoted when it fits).
+    public var int64: Int64? {
+        switch self {
+        case .int(let v): return v
+        case .uint(let v): return Int64(exactly: v)
+        default: return nil
+        }
+    }
+
+    /// The string payload, if this is a `.string` value (not a rendered form of another type).
+    public var stringValue: String? {
+        if case .string(let s) = self { return s }
+        return nil
+    }
+
     /// A human-readable rendering for grids and probes.
     public var displayString: String {
         switch self {

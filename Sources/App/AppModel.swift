@@ -1,0 +1,134 @@
+import SwiftUI
+import DuckDBKit
+
+/// Single source of truth for the window: the open lake, its snapshots and schema, the
+/// active time context, selection, and appearance. Views bind to this; only this touches
+/// the `LakeSession` actor.
+@MainActor
+@Observable
+final class AppModel {
+    // Connection
+    private(set) var lakePath: String?
+    private(set) var backend: String?          // ducklake_settings().catalog_type
+    private(set) var extensionVersion: String?
+
+    // Data
+    private(set) var snapshots: [Snapshot] = []
+    private(set) var schemaRoots: [CatalogNode] = []
+    var activeSnapshot: Snapshot?
+    var selectedNodeID: String?
+
+    // Chrome
+    var appearanceOverride: ColorScheme?
+    private(set) var errorText: String?
+    private(set) var isLoading = false
+
+    private var session: LakeSession?
+
+    var lakeName: String? { lakePath.map { ($0 as NSString).lastPathComponent } }
+
+    var selectedNode: CatalogNode? {
+        guard let id = selectedNodeID else { return nil }
+        return Self.find(id, in: schemaRoots)
+    }
+
+    // MARK: Opening
+
+    func open(path: String) async {
+        isLoading = true
+        errorText = nil
+        defer { isLoading = false }
+        do {
+            let session = try LakeSession()
+            try await session.loadCoreExtensions()
+            try await session.attach(.duckDBFile(path))
+            self.session = session
+            self.lakePath = path
+
+            let settings = try await session.query(
+                "SELECT catalog_type, extension_version FROM ducklake_settings('lake');")
+            if let row = settings.rows.first {
+                backend = row[0].displayString
+                extensionVersion = row[1].displayString
+            }
+            try await loadSnapshots()
+            try await loadSchema()
+        } catch {
+            errorText = String(describing: error)
+        }
+    }
+
+    /// Runs an arbitrary read-only query against the open lake (used by detail panes).
+    func query(_ sql: String, maxRows: Int? = nil) async throws -> QueryResult {
+        guard let session else { throw DuckError.connect("no lake open") }
+        return try await session.query(sql, maxRows: maxRows)
+    }
+
+    func activate(_ snapshot: Snapshot) {
+        activeSnapshot = snapshot
+    }
+
+    // MARK: Loading
+
+    private func loadSnapshots() async throws {
+        guard let session else { return }
+        let result = try await session.query("""
+            SELECT snapshot_id, snapshot_time::VARCHAR, schema_version,
+                   CAST(changes AS VARCHAR), author, commit_message,
+                   CAST(commit_extra_info AS VARCHAR)
+            FROM ducklake_snapshots('lake')
+            ORDER BY snapshot_id DESC;
+            """)
+        snapshots = result.rows.compactMap(Snapshot.init(row:))
+        activeSnapshot = snapshots.first   // newest
+    }
+
+    private func loadSchema() async throws {
+        guard let session else { return }
+        let tables = try await session.query("""
+            SELECT table_name, table_type FROM information_schema.tables
+            WHERE table_catalog = 'lake' AND table_schema = 'main'
+            ORDER BY table_name;
+            """)
+        let columns = try await session.query("""
+            SELECT table_name, column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_catalog = 'lake' AND table_schema = 'main'
+            ORDER BY table_name, ordinal_position;
+            """)
+
+        var columnsByTable: [String: [CatalogNode]] = [:]
+        for row in columns.rows {
+            let table = row[0].displayString
+            let column = row[1].displayString
+            columnsByTable[table, default: []].append(
+                CatalogNode(
+                    id: "lake.main.\(table).\(column)", name: column, kind: .column,
+                    dataType: row[2].displayString, nullable: row[3].displayString == "YES",
+                    children: nil))
+        }
+
+        let tableNodes: [CatalogNode] = tables.rows.map { row in
+            let table = row[0].displayString
+            let isView = row[1].displayString.uppercased().contains("VIEW")
+            return CatalogNode(
+                id: "lake.main.\(table)", name: table, kind: isView ? .view : .table,
+                dataType: nil, nullable: false, children: columnsByTable[table] ?? [])
+        }
+
+        let schema = CatalogNode(
+            id: "lake.main", name: "main", kind: .schema, dataType: nil, nullable: false,
+            children: tableNodes)
+        schemaRoots = [CatalogNode(
+            id: "lake", name: lakeName ?? "lake", kind: .catalog, dataType: nil, nullable: false,
+            children: [schema])]
+    }
+
+    private static func find(_ id: String, in nodes: [CatalogNode]) -> CatalogNode? {
+        for node in nodes {
+            if node.id == id { return node }
+            if let children = node.children, let hit = find(id, in: children) { return hit }
+        }
+        return nil
+    }
+}
