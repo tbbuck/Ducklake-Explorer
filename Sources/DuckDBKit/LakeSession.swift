@@ -17,6 +17,16 @@ public enum LakeSource: Sendable, Equatable {
         }
     }
 
+    /// SQL to attach the *underlying* catalog database (not via DuckLake) read-only, so the
+    /// raw `ducklake_*` metadata tables (column stats, etc.) can be queried. Nil for `.raw`.
+    public func rawCatalogAttach(alias: String) -> String? {
+        switch self {
+        case .duckDBFile(let p): return "ATTACH '\(Self.escape(p))' AS \(alias) (READ_ONLY);"
+        case .sqliteFile(let p): return "ATTACH 'sqlite:\(Self.escape(p))' AS \(alias) (READ_ONLY);"
+        case .raw:               return nil
+        }
+    }
+
     static func escape(_ s: String) -> String {
         var out = ""
         for ch in s { out += ch == "'" ? "''" : String(ch) }
@@ -50,6 +60,11 @@ public actor LakeSession {
     public func attach(_ source: LakeSource, as alias: String = "lake", activate: Bool = true) throws -> QueryResult {
         let result = try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (READ_ONLY);")
         if activate { try db.run("USE \(alias);") }
+        // Best-effort: attach the raw catalog DB for column stats / metadata browsing. This is
+        // a pure enrichment — if it fails, the core read-only exploration is unaffected.
+        if let rawAttach = source.rawCatalogAttach(alias: "\(alias)_meta") {
+            try? db.run(rawAttach)
+        }
         return result
     }
 

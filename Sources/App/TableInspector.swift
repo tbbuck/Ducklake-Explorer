@@ -1,18 +1,20 @@
 import SwiftUI
 
 /// "What is this table, physically?" — header + metrics, the `CoreSampleView` file-stack,
-/// and the schema. Everything here reads **catalog metadata** (`duckdb_tables`,
-/// `ducklake_list_files`), so it works even when the data lives on S3 (the herd lake).
+/// and the schema with per-column stats. Everything reads **catalog metadata**
+/// (`ducklake_table_stats`, `ducklake_table_column_stats`, `ducklake_list_files`), so it
+/// works even when the data lives on S3 (the herd lake).
 struct TableInspector: View {
     @Environment(AppModel.self) private var model
     let node: CatalogNode
 
     @State private var files: [DataFile] = []
-    @State private var estRows: String = "…"
+    @State private var rowCount: String = "…"
+    @State private var stats: [String: ColumnStat] = [:]
 
     private var columns: [CatalogNode] { node.children ?? [] }
     private var dataFiles: [DataFile] { files.filter { $0.kind == .data } }
-    private var totalSize: Int64 { dataFiles.reduce(0) { $0 + $1.sizeBytes } }
+    private var totalSize: Int64 { dataFiles.reduce(0) { $0 + $1.sizeBytes } }   // current snapshot
 
     var body: some View {
         ScrollView {
@@ -42,7 +44,7 @@ struct TableInspector: View {
 
     private var metrics: some View {
         HStack(spacing: 30) {
-            Metric(label: "Rows", value: estRows)
+            Metric(label: "Rows", value: rowCount)
             Metric(label: "Columns", value: "\(columns.count)")
             Metric(label: "Files", value: "\(dataFiles.count)")
             Metric(label: "Size", value: totalSize > 0 ? Format.bytes(totalSize) : "—")
@@ -62,24 +64,9 @@ struct TableInspector: View {
 
     private var schemaColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PanelLabel("Schema")
+            PanelLabel("Schema & stats")
             ForEach(columns) { column in
-                HStack(spacing: 10) {
-                    Image(systemName: column.symbol)
-                        .font(.system(size: 11))
-                        .foregroundStyle(column.isGeometry ? Palette.geometry : Palette.textTertiary)
-                        .frame(width: 16)
-                    Text(column.name).font(.stratumMono(12)).foregroundStyle(Palette.textPrimary)
-                        .lineLimit(1).layoutPriority(1)
-                    Spacer(minLength: 8)
-                    Text(column.dataType ?? "").font(.stratumMono(11))
-                        .foregroundStyle(typeColor(column.dataType))
-                        .lineLimit(1)
-                    Text(column.nullable ? "nullable" : "not null")
-                        .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
-                        .frame(width: 62, alignment: .trailing)
-                }
-                .padding(.horizontal, 12).padding(.vertical, 6)
+                ColumnStatRow(column: column, stat: stats[column.name])
                 Divider().overlay(Palette.hairline)
             }
         }
@@ -88,17 +75,13 @@ struct TableInspector: View {
     }
 
     private func load() async {
-        estRows = "…"; files = []
-        do {
-            let rows = try await model.query(
-                "SELECT estimated_size FROM duckdb_tables() WHERE database_name = 'lake' AND table_name = '\(node.name)';")
-            if let s = rows.scalarString, let n = Int64(s) { estRows = Format.count(n) }
-            else { estRows = rows.scalarString ?? "—" }
+        rowCount = "…"; files = []; stats = [:]
+        let name = node.name
 
-            let listed = try await model.query("""
-                SELECT data_file, data_file_size_bytes, delete_file, delete_file_size_bytes
-                FROM ducklake_list_files('lake', '\(node.name)');
-                """)
+        if let listed = try? await model.query("""
+            SELECT data_file, data_file_size_bytes, delete_file, delete_file_size_bytes
+            FROM ducklake_list_files('lake', '\(name)');
+            """) {
             var parsed: [DataFile] = []
             for row in listed.rows {
                 if !row[0].isNull {
@@ -111,9 +94,88 @@ struct TableInspector: View {
                 }
             }
             files = parsed
-        } catch {
-            estRows = "—"
         }
+
+        // Exact rows + size from the catalog stats, falling back to the planner estimate.
+        if let m = try? await model.query("""
+            SELECT ts.record_count
+            FROM lake_meta.ducklake_table_stats ts
+            JOIN lake_meta.ducklake_table t ON t.table_id = ts.table_id AND t.end_snapshot IS NULL
+            WHERE t.table_name = '\(name)';
+            """), let n = m.scalarString.flatMap({ Int64($0) }) {
+            rowCount = Format.count(n)
+        } else if let r = try? await model.query(
+            "SELECT estimated_size FROM duckdb_tables() WHERE database_name = 'lake' AND table_name = '\(name)';"),
+                  let s = r.scalarString, let n = Int64(s) {
+            rowCount = Format.count(n)
+        } else {
+            rowCount = "—"
+        }
+
+        // Per-column min/max + contains-null from the catalog (offline, even for remote data).
+        if let cs = try? await model.query("""
+            SELECT c.column_name, s.contains_null, s.min_value, s.max_value
+            FROM lake_meta.ducklake_table_column_stats s
+            JOIN lake_meta.ducklake_table t ON t.table_id = s.table_id AND t.end_snapshot IS NULL
+            JOIN lake_meta.ducklake_column c
+              ON c.table_id = s.table_id AND c.column_id = s.column_id AND c.end_snapshot IS NULL
+            WHERE t.table_name = '\(name)';
+            """) {
+            var map: [String: ColumnStat] = [:]
+            for row in cs.rows {
+                map[row[0].displayString] = ColumnStat(
+                    nulls: (row[1].int64 ?? 0) != 0,
+                    min: row[2].isNull ? "" : row[2].displayString,
+                    max: row[3].isNull ? "" : row[3].displayString)
+            }
+            stats = map
+        }
+    }
+}
+
+/// Per-column stat carried from `ducklake_table_column_stats` (VARCHAR-encoded min/max).
+struct ColumnStat {
+    let nulls: Bool
+    let min: String
+    let max: String
+    var hasRange: Bool { !(min.isEmpty && max.isEmpty) }
+}
+
+private struct ColumnStatRow: View {
+    let column: CatalogNode
+    let stat: ColumnStat?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: column.symbol)
+                .font(.system(size: 11))
+                .foregroundStyle(column.isGeometry ? Palette.geometry : Palette.textTertiary)
+                .frame(width: 16)
+            Text(column.name).font(.stratumMono(12)).foregroundStyle(Palette.textPrimary)
+                .lineLimit(1).layoutPriority(1)
+            Text(column.dataType ?? "").font(.stratumMono(10))
+                .foregroundStyle(typeColor(column.dataType)).lineLimit(1)
+            Spacer(minLength: 10)
+            if let stat, stat.hasRange {
+                Text("\(short(stat.min)) → \(short(stat.max))")
+                    .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+            Circle()
+                .fill((stat?.nulls ?? false) ? Palette.accent2 : Palette.hairline)
+                .frame(width: 6, height: 6)
+                .help(nullsHelp)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 6)
+    }
+
+    private var nullsHelp: String {
+        if stat?.nulls == true { return "contains nulls" }
+        return column.nullable ? "nullable — no nulls present" : "not null"
+    }
+
+    private func short(_ s: String, _ n: Int = 16) -> String {
+        s.count <= n ? s : String(s.prefix(n)) + "…"
     }
 }
 
@@ -202,7 +264,6 @@ private struct FileLegend: View {
         }
     }
 
-    /// Trims the DuckLake UUID filename to a short token.
     private func shortName(_ name: String) -> String {
         let stem = name.replacingOccurrences(of: ".parquet", with: "")
             .replacingOccurrences(of: "ducklake-", with: "")
