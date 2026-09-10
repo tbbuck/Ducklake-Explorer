@@ -1,36 +1,39 @@
 import SwiftUI
+import DuckDBKit
 
-/// "What is this table, physically?" — header + metrics, the `CoreSampleView` file-stack,
-/// and the schema with per-column stats. Everything reads **catalog metadata**
-/// (`ducklake_table_stats`, `ducklake_table_column_stats`, `ducklake_list_files`), so it
-/// works even when the data lives on S3 (the herd lake).
+/// "What is this table, physically?" — header, snapshot detail, metrics, the horizontal
+/// Parquet-file bar (+ scrollable legend), and a sample of the data. Metadata is read from
+/// the catalog (works when data is remote); the sample loads separately so it never blocks
+/// the fast metadata.
 struct TableInspector: View {
     @Environment(AppModel.self) private var model
     let node: CatalogNode
 
+    // Fast (catalog metadata)
     @State private var files: [DataFile] = []
     @State private var rowCount: String = "…"
-    @State private var stats: [String: ColumnStat] = [:]
+    // Slower (actual data) — its own loader
+    @State private var sample: QueryResult?
+    @State private var sampleLoading = false
+    @State private var sampleError: String?
 
-    private var columns: [CatalogNode] { node.children ?? [] }
     private var dataFiles: [DataFile] { files.filter { $0.kind == .data } }
-    private var totalSize: Int64 { dataFiles.reduce(0) { $0 + $1.sizeBytes } }   // current snapshot
+    private var totalSize: Int64 { dataFiles.reduce(0) { $0 + $1.sizeBytes } }
+    private var taskID: String { "\(node.id)#\(model.activeSnapshot?.id ?? -1)" }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                header
-                if let snapshot = model.activeSnapshot { SnapshotDetailPanel(snapshot: snapshot) }
-                metrics
-                Divider().overlay(Palette.hairline)
-                HStack(alignment: .top, spacing: 20) {
-                    coreColumn.frame(width: 220, alignment: .leading)
-                    schemaColumn.frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .padding(24)
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            if let snapshot = model.activeSnapshot { SnapshotDetailPanel(snapshot: snapshot) }
+            metrics
+            Divider().overlay(Palette.hairline)
+            parquetSection
+            Divider().overlay(Palette.hairline)
+            sampleSection
         }
-        .task(id: "\(node.id)#\(model.activeSnapshot?.id ?? -1)") { await load() }
+        .padding(20)
+        .task(id: taskID) { await loadMetadata() }
+        .task(id: taskID) { await loadSample() }
     }
 
     private var header: some View {
@@ -45,44 +48,57 @@ struct TableInspector: View {
     private var metrics: some View {
         HStack(spacing: 30) {
             Metric(label: "Rows", value: rowCount)
-            Metric(label: "Columns", value: "\(columns.count)")
+            Metric(label: "Columns", value: "\(node.children?.count ?? 0)")
             Metric(label: "Files", value: "\(dataFiles.count)")
             Metric(label: "Size", value: totalSize > 0 ? Format.bytes(totalSize) : "—")
         }
     }
 
-    private var coreColumn: some View {
+    private var parquetSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             PanelLabel("Parquet files")
-            HStack(alignment: .top, spacing: 14) {
-                CoreSampleView(files: files).padding(.leading, 12)
-                FileLegend(files: files)
+            HStack(alignment: .top, spacing: 16) {
+                CoreSampleView(files: files).frame(maxWidth: .infinity)
+                ScrollView(.vertical, showsIndicators: true) {
+                    FileLegend(files: files)
+                }
+                .frame(width: 240, height: 78)
             }
-            .padding(.top, 4)
+            .padding(.horizontal, 12).padding(.top, 6)
         }
     }
 
-    private var schemaColumn: some View {
+    private var sampleSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PanelLabel("Schema & stats")
-            ForEach(columns) { column in
-                ColumnStatRow(column: column, stat: stats[column.name])
-                Divider().overlay(Palette.hairline)
+            PanelLabel("Sample data · top 200")
+            ZStack {
+                if let sample, !sample.columns.isEmpty {
+                    ResultsGrid(result: sample)
+                } else if let sampleError {
+                    ScrollView {
+                        Text(sampleError).font(.stratumMono(11)).foregroundStyle(Palette.danger)
+                            .textSelection(.enabled).padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                if sampleLoading {
+                    ProgressView().controlSize(.small)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.hairline))
+        .frame(maxHeight: .infinity)
     }
 
-    private func load() async {
-        rowCount = "…"; files = []; stats = [:]
+    /// Catalog metadata — fast. Assigned with animation and without blanking first, so
+    /// switching tables cross-fades rather than flickering off/on.
+    private func loadMetadata() async {
         let name = node.name
-
+        var parsed: [DataFile] = []
         if let listed = try? await model.query("""
             SELECT data_file, data_file_size_bytes, delete_file, delete_file_size_bytes
             FROM ducklake_list_files('lake', '\(name)');
             """) {
-            var parsed: [DataFile] = []
             for row in listed.rows {
                 if !row[0].isNull {
                     parsed.append(DataFile(id: row[0].displayString, path: row[0].displayString,
@@ -93,83 +109,32 @@ struct TableInspector: View {
                                            sizeBytes: row[3].int64 ?? 0, kind: .delete))
                 }
             }
-            files = parsed
         }
-
-        // Row count from the attached lake (reflects the active snapshot). For a DuckLake
-        // table this is the exact record count from the catalog, not an estimate.
+        var rows = "—"
         if let r = try? await model.query(
             "SELECT estimated_size FROM duckdb_tables() WHERE database_name = 'lake' AND table_name = '\(name)';"),
            let s = r.scalarString, let n = Int64(s) {
-            rowCount = Format.count(n)
-        } else {
-            rowCount = "—"
+            rows = Format.count(n)
         }
-
-        // Per-column min/max + contains-null from the catalog (offline, even for remote data).
-        if let cs = try? await model.query("""
-            SELECT c.column_name, s.contains_null, s.min_value, s.max_value
-            FROM lake_meta.ducklake_table_column_stats s
-            JOIN lake_meta.ducklake_table t ON t.table_id = s.table_id AND t.end_snapshot IS NULL
-            JOIN lake_meta.ducklake_column c
-              ON c.table_id = s.table_id AND c.column_id = s.column_id AND c.end_snapshot IS NULL
-            WHERE t.table_name = '\(name)';
-            """) {
-            var map: [String: ColumnStat] = [:]
-            for row in cs.rows {
-                map[row[0].displayString] = ColumnStat(
-                    nulls: (row[1].int64 ?? 0) != 0,
-                    min: row[2].isNull ? "" : row[2].displayString,
-                    max: row[3].isNull ? "" : row[3].displayString)
-            }
-            stats = map
+        withAnimation(.easeInOut(duration: 0.2)) {
+            files = parsed
+            rowCount = rows
         }
     }
-}
 
-/// Per-column stat carried from `ducklake_table_column_stats` (VARCHAR-encoded min/max).
-struct ColumnStat {
-    let nulls: Bool
-    let min: String
-    let max: String
-    var hasRange: Bool { !(min.isEmpty && max.isEmpty) }
-}
-
-private struct ColumnStatRow: View {
-    let column: CatalogNode
-    let stat: ColumnStat?
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: column.symbol)
-                .font(.system(size: 11))
-                .foregroundStyle(column.isGeometry ? Palette.geometry : Palette.textTertiary)
-                .frame(width: 16)
-            Text(column.name).font(.stratumMono(12)).foregroundStyle(Palette.textPrimary)
-                .lineLimit(1).layoutPriority(1)
-            Text(column.dataType ?? "").font(.stratumMono(10))
-                .foregroundStyle(typeColor(column.dataType)).lineLimit(1)
-            Spacer(minLength: 10)
-            if let stat, stat.hasRange {
-                Text("\(short(stat.min)) → \(short(stat.max))")
-                    .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
-                    .lineLimit(1).truncationMode(.middle)
-            }
-            Circle()
-                .fill((stat?.nulls ?? false) ? Palette.accent2 : Palette.hairline)
-                .frame(width: 6, height: 6)
-                .help(nullsHelp)
+    /// The actual data sample — slower (may hit S3), so it carries its own loader and never
+    /// holds up the metadata above.
+    private func loadSample() async {
+        sampleLoading = true
+        sampleError = nil
+        sample = nil
+        defer { sampleLoading = false }
+        do {
+            let result = try await model.query("SELECT * FROM \"\(node.name)\" LIMIT 200;", maxRows: 200)
+            withAnimation(.easeInOut(duration: 0.2)) { sample = result }
+        } catch {
+            sampleError = String(describing: error)
         }
-        .padding(.horizontal, 12).padding(.vertical, 6)
-    }
-
-    private var nullsHelp: String {
-        if stat?.nulls == true { return "contains nulls" }
-        return column.nullable ? "nullable — no nulls present" : "not null"
-    }
-
-    private func short(_ s: String, _ n: Int = 16) -> String {
-        s.count <= n ? s : String(s.prefix(n)) + "…"
     }
 }
 
@@ -225,14 +190,15 @@ private struct Metric: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value).font(.stratumMono(18, .medium)).foregroundStyle(Palette.accent)
+                .contentTransition(.numericText())
             Text(label.uppercased()).font(.stratumMono(9, .medium)).tracking(0.8)
                 .foregroundStyle(Palette.textTertiary)
         }
     }
 }
 
-/// The literal core: stacked Parquet layers sized by file size, coloured down the strata
-/// ramp, with delete files drawn as amber "erosion" lines.
+/// The literal core, **horizontal**: Parquet layers laid out left→right, sized by file, down
+/// the strata ramp, with delete files as amber "erosion" lines.
 struct CoreSampleView: View {
     let files: [DataFile]
 
@@ -245,29 +211,29 @@ struct CoreSampleView: View {
         let total = max(1, data.reduce(0) { $0 + $1.sizeBytes })
 
         Canvas { context, size in
-            var y: CGFloat = 0
+            var x: CGFloat = 0
             for (index, file) in data.enumerated() {
-                let height = size.height * CGFloat(file.sizeBytes) / CGFloat(total)
-                let rect = CGRect(x: 0, y: y, width: size.width, height: max(1, height))
+                let width = size.width * CGFloat(file.sizeBytes) / CGFloat(total)
+                let rect = CGRect(x: x, y: 0, width: max(1, width), height: size.height)
                 context.fill(Path(rect), with: .color(strata[index % strata.count]))
                 context.stroke(
-                    Path { $0.move(to: CGPoint(x: 0, y: y)); $0.addLine(to: CGPoint(x: size.width, y: y)) },
+                    Path { $0.move(to: CGPoint(x: x, y: 0)); $0.addLine(to: CGPoint(x: x, y: size.height)) },
                     with: .color(Palette.base.opacity(0.45)), lineWidth: 0.5)
-                y += height
+                x += width
             }
             for (j, _) in deletes.enumerated() {
-                let dy = size.height * CGFloat(j + 1) / CGFloat(deletes.count + 1)
+                let dx = size.width * CGFloat(j + 1) / CGFloat(deletes.count + 1)
                 context.stroke(
-                    Path { $0.move(to: CGPoint(x: 0, y: dy)); $0.addLine(to: CGPoint(x: size.width, y: dy)) },
+                    Path { $0.move(to: CGPoint(x: dx, y: 0)); $0.addLine(to: CGPoint(x: dx, y: size.height)) },
                     with: .color(Palette.accent2), style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
             }
         }
-        .frame(width: 78, height: 320)
+        .frame(height: 78)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .fill(LinearGradient(colors: [.black.opacity(0.16), .clear, .black.opacity(0.16)],
-                                     startPoint: .leading, endPoint: .trailing))
+                                     startPoint: .top, endPoint: .bottom))
                 .blendMode(.multiply).allowsHitTesting(false))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.border, lineWidth: 1))
         .overlay {
@@ -278,14 +244,13 @@ struct CoreSampleView: View {
     }
 }
 
-/// The legend beside the core — one row per file, sized, with a delete tag.
+/// The legend beside the core — one row per file (scrollable), sized, delete files tagged.
 private struct FileLegend: View {
     let files: [DataFile]
-    private let cap = 12
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            ForEach(files.prefix(cap)) { file in
+            ForEach(files) { file in
                 HStack(spacing: 7) {
                     Circle()
                         .fill(file.kind == .delete ? Palette.accent2 : Palette.strataMarl)
@@ -297,11 +262,8 @@ private struct FileLegend: View {
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
-            if files.count > cap {
-                Text("+\(files.count - cap) more").font(.stratumMono(9))
-                    .foregroundStyle(Palette.textTertiary).padding(.top, 1)
-            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func shortName(_ name: String) -> String {

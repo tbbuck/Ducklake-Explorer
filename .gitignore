@@ -6,6 +6,9 @@ claude-sql/
 # Local dev lake (large, not a committed fixture) + its sqlite sidecars
 herd-lake.sqlite*
 
+# Notarization credential — never commit
+.ducklake-notary
+
 # Xcode / SwiftPM
 *.xcodeproj/
 .build/
