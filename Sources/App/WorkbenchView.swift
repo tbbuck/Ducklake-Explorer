@@ -10,10 +10,7 @@ struct WorkbenchView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 PanelLabel("Query")
-                TextEditor(text: $model.sql)
-                    .font(.stratumMono(12))
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
+                SQLEditor(text: $model.sql)
                     .frame(height: 128)
                     .background(Palette.surfaceRaised, in: RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.hairline))
