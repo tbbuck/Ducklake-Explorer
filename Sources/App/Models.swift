@@ -56,6 +56,13 @@ struct CatalogNode: Identifiable, Hashable, Sendable {
     }
 }
 
+/// One flattened, currently-visible schema-tree row (a node at a given indent depth).
+struct SchemaRowItem: Identifiable, Sendable {
+    let node: CatalogNode
+    let depth: Int
+    var id: String { node.id }
+}
+
 /// One physical file backing a table — a Parquet data file or its delete (erosion) file.
 /// Sourced from `ducklake_list_files` (catalog metadata; readable even when data is remote).
 struct DataFile: Identifiable, Sendable {

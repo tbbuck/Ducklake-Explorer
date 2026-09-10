@@ -20,6 +20,7 @@ struct TableInspector: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                if let snapshot = model.activeSnapshot { SnapshotDetailPanel(snapshot: snapshot) }
                 metrics
                 Divider().overlay(Palette.hairline)
                 HStack(alignment: .top, spacing: 20) {
@@ -38,7 +39,6 @@ struct TableInspector: View {
                 .foregroundStyle(Palette.textPrimary)
             Badge(text: node.kind == .view ? "view" : "table")
             Spacer()
-            SnapshotChip(snapshot: model.activeSnapshot)
         }
     }
 
@@ -53,7 +53,7 @@ struct TableInspector: View {
 
     private var coreColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PanelLabel("Core sample")
+            PanelLabel("Parquet files")
             HStack(alignment: .top, spacing: 14) {
                 CoreSampleView(files: files).padding(.leading, 12)
                 FileLegend(files: files)
@@ -170,6 +170,52 @@ private struct ColumnStatRow: View {
 
     private func short(_ s: String, _ n: Int = 16) -> String {
         s.count <= n ? s : String(s.prefix(n)) + "…"
+    }
+}
+
+/// The active snapshot's full `snapshots()` details, shown above the inspector.
+struct SnapshotDetailPanel: View {
+    let snapshot: Snapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(verbatim: "v\(snapshot.id)").font(.stratumMono(13, .semibold))
+                    .foregroundStyle(Palette.accent)
+                Text(snapshot.time).font(.stratumMono(10)).foregroundStyle(Palette.textSecondary)
+                Badge(text: snapshot.changeTag, color: tagColor)
+                Spacer()
+                Text(verbatim: "schema v\(snapshot.schemaVersion)")
+                    .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
+            }
+            Text(snapshot.changes).font(.stratumMono(10)).foregroundStyle(Palette.textSecondary)
+                .lineLimit(2).textSelection(.enabled)
+            if let message = snapshot.commitMessage {
+                Text(message).font(.stratumUI(11)).foregroundStyle(Palette.textPrimary)
+            }
+            if snapshot.author != nil || snapshot.commitExtraInfo != nil {
+                HStack(spacing: 12) {
+                    if let author = snapshot.author {
+                        Label(author, systemImage: "person")
+                            .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
+                    }
+                    if let extra = snapshot.commitExtraInfo {
+                        Text(extra).font(.stratumMono(9)).foregroundStyle(Palette.textTertiary).lineLimit(1)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.hairline))
+    }
+
+    private var tagColor: Color {
+        switch snapshot.changeTag {
+        case "delete", "schema": return Palette.accent2
+        default: return Palette.accent
+        }
     }
 }
 

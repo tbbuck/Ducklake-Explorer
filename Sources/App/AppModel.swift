@@ -58,6 +58,33 @@ final class AppModel {
         if expandedNodeIDs.contains(id) { expandedNodeIDs.remove(id) } else { expandedNodeIDs.insert(id) }
     }
 
+    /// The flattened, currently-visible schema rows (node + indent depth). A flat list avoids
+    /// the SwiftUI OutlineList/DisclosureGroup machinery (which asserts on data changes) and is
+    /// far cheaper to re-render.
+    var visibleSchemaRows: [SchemaRowItem] {
+        var rows: [SchemaRowItem] = []
+        func walk(_ nodes: [CatalogNode], _ depth: Int) {
+            for node in nodes {
+                rows.append(SchemaRowItem(node: node, depth: depth))
+                if let children = node.children, !children.isEmpty, expandedNodeIDs.contains(node.id) {
+                    walk(children, depth + 1)
+                }
+            }
+        }
+        walk(schemaRoots, 0)
+        return rows
+    }
+
+    /// Appends an identifier to the workbench query (or sets it when empty).
+    func appendToQuery(_ identifier: String) {
+        if sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            sql = identifier
+        } else {
+            let needsSpace = !(sql.hasSuffix(" ") || sql.hasSuffix("\n"))
+            sql += (needsSpace ? " " : "") + identifier
+        }
+    }
+
     // MARK: Opening
 
     func open(path: String) async {
@@ -161,6 +188,23 @@ final class AppModel {
         isQuerying = false
     }
 
+    // MARK: Diff (shared between the HistoryRail and SnapshotDiffView)
+
+    var diffFrom: Snapshot?
+    var diffTo: Snapshot?
+
+    /// A plain history click sets `from`; a shift-click extends the range from the current
+    /// `from` anchor, always keeping the lower snapshot id as `from`.
+    func diffPick(_ snapshot: Snapshot, extend: Bool) {
+        if extend, let anchor = diffFrom {
+            let lo = min(anchor.id, snapshot.id), hi = max(anchor.id, snapshot.id)
+            diffFrom = snapshots.first { $0.id == lo }
+            diffTo = snapshots.first { $0.id == hi }
+        } else {
+            diffFrom = snapshot
+        }
+    }
+
     /// Runs an arbitrary read-only query against the open lake (used by detail panes).
     func query(_ sql: String, maxRows: Int? = nil) async throws -> QueryResult {
         guard let session else { throw DuckError.connect("no lake open") }
@@ -237,7 +281,7 @@ final class AppModel {
             id: "lake", name: lakeName ?? "lake", kind: .catalog, dataType: nil, nullable: false,
             children: [schema])]
         if expandedNodeIDs.isEmpty {
-            expandedNodeIDs = Self.branchIDs(schemaRoots)   // open fully on first load
+            expandedNodeIDs = Self.expandedByDefault(schemaRoots)   // catalog + schema; tables collapsed
         }
         // Keep the current selection if it still exists as-of this snapshot; else pick richest.
         if selectedNodeID == nil || Self.find(selectedNodeID!, in: schemaRoots) == nil {
@@ -245,11 +289,12 @@ final class AppModel {
         }
     }
 
-    private static func branchIDs(_ nodes: [CatalogNode]) -> Set<String> {
+    /// Catalog and schema nodes open by default; tables start collapsed.
+    private static func expandedByDefault(_ nodes: [CatalogNode]) -> Set<String> {
         var ids = Set<String>()
-        for node in nodes where !(node.children ?? []).isEmpty {
-            ids.insert(node.id)
-            ids.formUnion(branchIDs(node.children ?? []))
+        for node in nodes where node.kind == .catalog || node.kind == .schema {
+            if !(node.children ?? []).isEmpty { ids.insert(node.id) }
+            ids.formUnion(expandedByDefault(node.children ?? []))
         }
         return ids
     }

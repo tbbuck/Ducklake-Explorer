@@ -55,10 +55,8 @@ struct ThemeToggle: View {
             default:          model.appearanceOverride = nil
             }
         } label: {
-            Image(systemName: symbol).font(.system(size: 12))
+            Image(systemName: symbol)
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(Palette.textSecondary)
         .help("Appearance: \(label)")
     }
     private var symbol: String {

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// The leftmost pane: snapshot history as a stratigraphic log, newest at the top, with the
 /// continuous teal `CoreSpine` running down its leading edge.
@@ -14,13 +15,16 @@ struct HistoryRail: View {
                         CoreSpine()
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(model.snapshots) { snapshot in
-                                SnapshotLamina(
-                                    snapshot: snapshot,
-                                    isActive: snapshot.id == model.activeSnapshot?.id
-                                )
-                                .contentShape(Rectangle())
-                                .onTapGesture { model.activate(snapshot) }
-                                .id(snapshot.id)
+                                SnapshotLamina(snapshot: snapshot, isActive: isHighlighted(snapshot))
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        if model.detailMode == .diff {
+                                            model.diffPick(snapshot, extend: NSEvent.modifierFlags.contains(.shift))
+                                        } else {
+                                            model.activate(snapshot)
+                                        }
+                                    }
+                                    .id(snapshot.id)
                                 Divider().overlay(Palette.hairline)
                             }
                         }
@@ -33,6 +37,14 @@ struct HistoryRail: View {
             }
         }
         .background(Palette.surface)
+    }
+
+    /// In Diff mode the rail highlights the from/to endpoints; otherwise the active snapshot.
+    private func isHighlighted(_ snapshot: Snapshot) -> Bool {
+        if model.detailMode == .diff {
+            return snapshot.id == model.diffFrom?.id || snapshot.id == model.diffTo?.id
+        }
+        return snapshot.id == model.activeSnapshot?.id
     }
 }
 
@@ -79,15 +91,14 @@ struct SnapshotLamina: View {
     }
 
     private var marker: some View {
-        Circle()
-            .fill(isActive ? Palette.accent : Palette.accentDim)
-            .frame(width: 7, height: 7)
-            .padding(.top, 4)
-            .overlay {
-                if isActive {
-                    Circle().stroke(Palette.accent.opacity(0.35), lineWidth: 4).frame(width: 13, height: 13)
-                }
+        ZStack {
+            if isActive {
+                Circle().stroke(Palette.accent.opacity(0.35), lineWidth: 4).frame(width: 13, height: 13)
             }
+            Circle().fill(isActive ? Palette.accent : Palette.accentDim).frame(width: 7, height: 7)
+        }
+        .frame(width: 13, height: 13)
+        .padding(.top, 3)
     }
 
     /// Strips the DuckLake `changes` map to a compact human summary.

@@ -5,36 +5,35 @@ import SwiftUI
 struct SnapshotDiffView: View {
     @Environment(AppModel.self) private var model
 
-    @State private var from: Snapshot?
-    @State private var to: Snapshot?
     @State private var diff: SnapshotDiff?
     @State private var loading = false
 
     var body: some View {
+        @Bindable var model = model
         VStack(alignment: .leading, spacing: 0) {
-            header
+            HStack(spacing: 14) {
+                SnapshotPicker(label: "From", snapshots: model.snapshots, selection: $model.diffFrom)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 12)).foregroundStyle(Palette.accent)
+                SnapshotPicker(label: "To", snapshots: model.snapshots, selection: $model.diffTo)
+                Spacer()
+                if loading { ProgressView().controlSize(.small) }
+                Text("click history to set From · ⇧-click for a range")
+                    .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
+            }
+            .padding(16)
             Divider().overlay(Palette.hairline)
             ScrollView { content.padding(16) }
         }
         .background(Palette.base)
         .onAppear {
             // Default to a recent window (last ~20 snapshots) — focused and quick to compute.
-            if from == nil { from = model.snapshots.count > 20 ? model.snapshots[20] : model.snapshots.last }
-            if to == nil { to = model.snapshots.first }
+            if model.diffFrom == nil {
+                model.diffFrom = model.snapshots.count > 20 ? model.snapshots[20] : model.snapshots.last
+            }
+            if model.diffTo == nil { model.diffTo = model.snapshots.first }
         }
-        .task(id: "\(from?.id ?? -1)>\(to?.id ?? -1)") { await compute() }
-    }
-
-    private var header: some View {
-        HStack(spacing: 14) {
-            SnapshotPicker(label: "From", snapshots: model.snapshots, selection: $from)
-            Image(systemName: "arrow.right")
-                .font(.system(size: 12)).foregroundStyle(Palette.accent)
-            SnapshotPicker(label: "To", snapshots: model.snapshots, selection: $to)
-            Spacer()
-            if loading { ProgressView().controlSize(.small) }
-        }
-        .padding(16)
+        .task(id: "\(model.diffFrom?.id ?? -1)>\(model.diffTo?.id ?? -1)") { await compute() }
     }
 
     @ViewBuilder private var content: some View {
@@ -57,7 +56,9 @@ struct SnapshotDiffView: View {
     }
 
     private func compute() async {
-        guard let from, let to, from.id != to.id else { diff = SnapshotDiff(); return }
+        guard let from = model.diffFrom, let to = model.diffTo, from.id != to.id else {
+            diff = SnapshotDiff(); return
+        }
         loading = true
         defer { loading = false }
         let lo = min(from.id, to.id)
