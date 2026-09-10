@@ -29,7 +29,7 @@ struct TableInspector: View {
             }
             .padding(24)
         }
-        .task(id: node.id) { await load() }
+        .task(id: "\(node.id)#\(model.activeSnapshot?.id ?? -1)") { await load() }
     }
 
     private var header: some View {
@@ -96,17 +96,11 @@ struct TableInspector: View {
             files = parsed
         }
 
-        // Exact rows + size from the catalog stats, falling back to the planner estimate.
-        if let m = try? await model.query("""
-            SELECT ts.record_count
-            FROM lake_meta.ducklake_table_stats ts
-            JOIN lake_meta.ducklake_table t ON t.table_id = ts.table_id AND t.end_snapshot IS NULL
-            WHERE t.table_name = '\(name)';
-            """), let n = m.scalarString.flatMap({ Int64($0) }) {
-            rowCount = Format.count(n)
-        } else if let r = try? await model.query(
+        // Row count from the attached lake (reflects the active snapshot). For a DuckLake
+        // table this is the exact record count from the catalog, not an estimate.
+        if let r = try? await model.query(
             "SELECT estimated_size FROM duckdb_tables() WHERE database_name = 'lake' AND table_name = '\(name)';"),
-                  let s = r.scalarString, let n = Int64(s) {
+           let s = r.scalarString, let n = Int64(s) {
             rowCount = Format.count(n)
         } else {
             rowCount = "—"

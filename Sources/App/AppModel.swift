@@ -142,7 +142,18 @@ final class AppModel {
     }
 
     func activate(_ snapshot: Snapshot) {
+        guard snapshot.id != activeSnapshot?.id, let session else { return }
         activeSnapshot = snapshot
+        // The newest snapshot is "latest" (no version constraint); otherwise pin to it.
+        let version: Int64? = (snapshot.id == snapshots.first?.id) ? nil : snapshot.id
+        Task {
+            do {
+                try await session.timeTravel(to: version)
+                try await loadSchema()   // reflects schema evolution as-of this snapshot
+            } catch {
+                errorText = String(describing: error)
+            }
+        }
     }
 
     // MARK: Loading
@@ -199,8 +210,11 @@ final class AppModel {
         schemaRoots = [CatalogNode(
             id: "lake", name: lakeName ?? "lake", kind: .catalog, dataType: nil, nullable: false,
             children: [schema])]
-        expandedNodeIDs = Self.branchIDs(schemaRoots)   // open fully by default
-        if selectedNodeID == nil {   // land on the richest table for a useful first view
+        if expandedNodeIDs.isEmpty {
+            expandedNodeIDs = Self.branchIDs(schemaRoots)   // open fully on first load
+        }
+        // Keep the current selection if it still exists as-of this snapshot; else pick richest.
+        if selectedNodeID == nil || Self.find(selectedNodeID!, in: schemaRoots) == nil {
             selectedNodeID = tableNodes.max { ($0.children?.count ?? 0) < ($1.children?.count ?? 0) }?.id
         }
     }

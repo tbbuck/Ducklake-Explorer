@@ -44,6 +44,8 @@ public actor LakeSession {
     /// (which is busy running the query). `DuckDB` is `@unchecked Sendable`; every method
     /// other than `interrupt()` is only ever called from this actor's isolation.
     private nonisolated let db: DuckDB
+    private var source: LakeSource?
+    private var alias = "lake"
 
     public init() throws {
         db = try DuckDB()
@@ -53,11 +55,17 @@ public actor LakeSession {
     public func loadCoreExtensions() throws {
         try db.run("LOAD ducklake;")
         try db.run("LOAD spatial;")
+        // For remote (S3/HTTPS) data files. Best-effort: local lakes don't need these, and a
+        // machine without them can still explore local catalogs.
+        try? db.run("LOAD httpfs;")
+        try? db.run("LOAD aws;")
     }
 
     /// Attaches a catalog READ-ONLY under `alias`, optionally making it the active catalog.
     @discardableResult
     public func attach(_ source: LakeSource, as alias: String = "lake", activate: Bool = true) throws -> QueryResult {
+        self.source = source
+        self.alias = alias
         let result = try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (READ_ONLY);")
         if activate { try db.run("USE \(alias);") }
         // Best-effort: attach the raw catalog DB for column stats / metadata browsing. This is
@@ -72,6 +80,17 @@ public actor LakeSession {
     @discardableResult
     public func query(_ sql: String, maxRows: Int? = nil) throws -> QueryResult {
         try db.run(sql, maxRows: maxRows)
+    }
+
+    /// Re-attaches the lake as of `version` (nil = latest) so schema, files, and queries all
+    /// reflect that snapshot. The raw metadata catalog stays attached (it spans all versions).
+    public func timeTravel(to version: Int64?) throws {
+        guard let source else { return }
+        try db.run("USE memory;")
+        try db.run("DETACH \(alias);")
+        let options = version.map { "READ_ONLY, SNAPSHOT_VERSION \($0)" } ?? "READ_ONLY"
+        try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (\(options));")
+        try db.run("USE \(alias);")
     }
 
     /// Cancels the query currently executing on this session. Safe to call from any task

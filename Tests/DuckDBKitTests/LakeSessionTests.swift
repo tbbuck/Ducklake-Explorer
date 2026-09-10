@@ -26,6 +26,18 @@ final class LakeSessionTests: XCTestCase {
         XCTAssertEqual(r.scalarString, "4")
     }
 
+    func testTimeTravelReattach() async throws {
+        let session = try await openSession()
+        var count = try await session.query("SELECT count(*) FROM observations;").scalarString
+        XCTAssertEqual(count, "5")
+        try await session.timeTravel(to: 4)   // first insert batch
+        count = try await session.query("SELECT count(*) FROM observations;").scalarString
+        XCTAssertEqual(count, "4")
+        try await session.timeTravel(to: nil)  // back to latest
+        count = try await session.query("SELECT count(*) FROM observations;").scalarString
+        XCTAssertEqual(count, "5")
+    }
+
     func testMaxRowsCaps() async throws {
         let session = try await openSession()
         let r = try await session.query("SELECT * FROM observations;", maxRows: 2)
