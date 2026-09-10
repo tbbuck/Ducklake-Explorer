@@ -93,7 +93,8 @@ struct GeoMapView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
         webView.navigationDelegate = context.coordinator
-        webView.loadHTMLString(Self.html, baseURL: URL(string: "https://tiles.local/"))
+        let page = Self.html.replacingOccurrences(of: "__MAPTILER_KEY__", with: MapConfig.maptilerKey)
+        webView.loadHTMLString(page, baseURL: URL(string: "https://tiles.local/"))
         context.coordinator.webView = webView
         return webView
     }
@@ -132,7 +133,7 @@ struct GeoMapView: NSViewRepresentable {
     const TEAL = '#1E7A72';
     const map = new maplibregl.Map({
       container: 'map',
-      style: 'https://api.maptiler.com/maps/dataviz/style.json?key=REDACTED_MAPTILER_KEY',
+      style: 'https://api.maptiler.com/maps/dataviz/style.json?key=__MAPTILER_KEY__',
       center: [-2.2, 54.2], zoom: 4.4, attributionControl: false
     });
     map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-right');

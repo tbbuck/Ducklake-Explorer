@@ -33,5 +33,20 @@ open ~/Library/Developer/Xcode/DerivedData/DuckLakeExplorer-*/Build/Products/Deb
 
 The `.xcodeproj` is generated (gitignored); edit `project.yml` and re-run `xcodegen generate`.
 
+## Map basemap (MapTiler key)
+
+The Map view renders [MapLibre GL](https://maplibre.org) tiles from
+[MapTiler](https://www.maptiler.com), which needs an API key. **No key is committed.** To
+render tiles, drop yours into an untracked config and regenerate:
+
+```sh
+echo 'MAPTILER_API_KEY = your_maptiler_key' > Config/maptiler.local.xcconfig
+xcodegen generate
+```
+
+`Config/maptiler.local.xcconfig` is gitignored; the key flows `MAPTILER_API_KEY` →
+`Info.plist` (`MapTilerAPIKey`) at build time → `MapConfig.swift` at runtime. Without a key
+the app runs fine — the basemap tiles just don't load.
+
 > Dev builds link Homebrew's `libduckdb` by absolute path and sign ad-hoc. Bundling the
 > library + DuckLake extensions and Developer-ID signing/notarization are M5.

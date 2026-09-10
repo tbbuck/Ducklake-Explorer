@@ -9,6 +9,9 @@ herd-lake.sqlite*
 # Notarization credential — never commit
 .ducklake-notary
 
+# Local MapTiler key override — never commit (see Config/maptiler.xcconfig)
+Config/maptiler.local.xcconfig
+
 # Xcode / SwiftPM
 *.xcodeproj/
 .build/

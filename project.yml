@@ -37,13 +37,20 @@ targets:
     dependencies:
       - package: DuckLakeCore
         product: DuckDBKit
+    # MapTiler key comes from Config/maptiler.xcconfig (+ untracked …local.xcconfig); no key
+    # is committed. It flows MAPTILER_API_KEY → Info.plist MapTilerAPIKey → MapConfig.swift.
+    configFiles:
+      Debug: Config/maptiler.xcconfig
+      Release: Config/maptiler.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.moomoomoo.DuckLakeExplorer
         PRODUCT_NAME: DuckLake Explorer
-        GENERATE_INFOPLIST_FILE: YES
+        # Manual Info.plist (not generated) so the custom MapTilerAPIKey key can be filled by
+        # build-setting substitution from $(MAPTILER_API_KEY). Icon keys live in the plist.
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Config/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.developer-tools"
         # libduckdb is linked from Homebrew (absolute install name) for now.
         LIBRARY_SEARCH_PATHS:
           - "/opt/homebrew/opt/duckdb/lib"
