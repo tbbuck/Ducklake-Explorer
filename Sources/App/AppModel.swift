@@ -126,6 +126,29 @@ final class AppModel {
         }
     }
 
+    /// Closes the open lake and returns to the connect screen, releasing the DuckDB connection
+    /// and clearing all lake-specific state. Recents (persisted) and the editor's SQL survive.
+    func close() {
+        cancelQuery()
+        session = nil                 // drops the LakeSession actor and its DuckDB connection
+        lakePath = nil
+        backend = nil
+        extensionVersion = nil
+        snapshots = []
+        schemaRoots = []
+        activeSnapshot = nil
+        selectedNodeID = nil
+        loadingTableID = nil
+        expandedNodeIDs = []
+        metaTable = nil
+        detailMode = .inspect
+        diffFrom = nil
+        diffTo = nil
+        queryResult = nil
+        queryError = nil
+        errorText = nil
+    }
+
     // MARK: Recents
 
     func loadRecents() {

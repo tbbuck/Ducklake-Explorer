@@ -51,7 +51,11 @@ struct ExplorerView: View {
                 }
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                if model.lakePath != nil { ThemeToggle() }
+                if model.lakePath != nil {
+                    Button { model.close() } label: { Image(systemName: "xmark.circle") }
+                        .help("Close lake — back to the connect screen")
+                    ThemeToggle()
+                }
                 Button { showImporter = true } label: { Image(systemName: "folder") }
                     .help("Open a DuckLake catalog")
             }
