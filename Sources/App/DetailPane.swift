@@ -32,7 +32,7 @@ private struct TableSummary: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 10) {
-                    Text(node.name).font(.stratumDisplay(22))
+                    Text(node.name).font(.stratumDisplay(22)).tracking(-0.4)
                         .foregroundStyle(Palette.textPrimary)
                     Badge(text: node.kind == .view ? "view" : "table")
                     Spacer()
@@ -58,7 +58,7 @@ private struct TableSummary: View {
                             Spacer()
                             Text(column.dataType ?? "")
                                 .font(.stratumMono(11))
-                                .foregroundStyle(Palette.textSecondary)
+                                .foregroundStyle(typeColor(column.dataType))
                             Text(column.nullable ? "nullable" : "not null")
                                 .font(.stratumMono(9))
                                 .foregroundStyle(Palette.textTertiary)

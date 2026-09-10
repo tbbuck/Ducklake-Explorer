@@ -17,6 +17,7 @@ final class AppModel {
     private(set) var schemaRoots: [CatalogNode] = []
     var activeSnapshot: Snapshot?
     var selectedNodeID: String?
+    var expandedNodeIDs: Set<String> = []
 
     // Chrome
     var appearanceOverride: ColorScheme?
@@ -30,6 +31,14 @@ final class AppModel {
     var selectedNode: CatalogNode? {
         guard let id = selectedNodeID else { return nil }
         return Self.find(id, in: schemaRoots)
+    }
+
+    func isExpanded(_ id: String) -> Bool { expandedNodeIDs.contains(id) }
+    func setExpanded(_ id: String, _ value: Bool) {
+        if value { expandedNodeIDs.insert(id) } else { expandedNodeIDs.remove(id) }
+    }
+    func toggleExpanded(_ id: String) {
+        if expandedNodeIDs.contains(id) { expandedNodeIDs.remove(id) } else { expandedNodeIDs.insert(id) }
     }
 
     // MARK: Opening
@@ -122,6 +131,17 @@ final class AppModel {
         schemaRoots = [CatalogNode(
             id: "lake", name: lakeName ?? "lake", kind: .catalog, dataType: nil, nullable: false,
             children: [schema])]
+        expandedNodeIDs = Self.branchIDs(schemaRoots)   // open fully by default
+        if selectedNodeID == nil { selectedNodeID = tableNodes.first?.id }
+    }
+
+    private static func branchIDs(_ nodes: [CatalogNode]) -> Set<String> {
+        var ids = Set<String>()
+        for node in nodes where !(node.children ?? []).isEmpty {
+            ids.insert(node.id)
+            ids.formUnion(branchIDs(node.children ?? []))
+        }
+        return ids
     }
 
     private static func find(_ id: String, in nodes: [CatalogNode]) -> CatalogNode? {

@@ -32,11 +32,10 @@ struct HistoryRail: View {
 /// The depth gradient behind the laminae — "you are here in time".
 private struct CoreSpine: View {
     var body: some View {
-        LinearGradient(
-            colors: [Palette.accent, Palette.accentDim],
-            startPoint: .top, endPoint: .bottom
-        )
-        .frame(width: 3)
+        Palette.coreSpine
+            .frame(width: 7)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .padding(.leading, 6).padding(.vertical, 4)
     }
 }
 
@@ -66,7 +65,10 @@ struct SnapshotLamina: View {
             }
         }
         .padding(.vertical, 9).padding(.leading, 10).padding(.trailing, 12)
-        .background(isActive ? Palette.selection : .clear)
+        .background(isActive ? Palette.accentSoft : .clear)
+        .overlay(alignment: .leading) {
+            if isActive { Rectangle().fill(Palette.accent).frame(width: 2) }
+        }
     }
 
     private var marker: some View {
@@ -91,10 +93,8 @@ struct SnapshotLamina: View {
 
     private var tagColor: Color {
         switch snapshot.changeTag {
-        case "insert": return Palette.accent
-        case "delete": return Palette.danger
-        case "schema": return Palette.geometry
-        default: return Palette.textTertiary
+        case "delete", "schema": return Palette.accent2   // tokens: deletes/alters use accent-2
+        default: return Palette.accent
         }
     }
 }

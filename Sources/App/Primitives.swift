@@ -10,7 +10,7 @@ struct Badge: View {
             .tracking(0.4)
             .foregroundStyle(color)
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(color.opacity(0.14), in: Capsule())
+            .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -36,16 +36,11 @@ struct SnapshotChip: View {
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: "clock.arrow.circlepath").font(.system(size: 10))
-            if let snapshot {
-                Text("as of v\(snapshot.id)").font(.stratumMono(11, .medium))
-            } else {
-                Text("latest").font(.stratumMono(11, .medium))
-            }
+            Text(snapshot.map { "as of v\($0.id)" } ?? "latest").font(.stratumMono(11, .medium))
         }
-        .foregroundStyle(Palette.accent)
-        .padding(.horizontal, 9).padding(.vertical, 4)
-        .background(Palette.accent.opacity(0.12), in: Capsule())
-        .overlay(Capsule().stroke(Palette.accent.opacity(0.30), lineWidth: 1))
+        .foregroundStyle(Palette.onCool)
+        .padding(.horizontal, 11).padding(.vertical, 5)
+        .background(Palette.accent, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
