@@ -12,6 +12,7 @@ struct TableInspector: View {
     // Fast (catalog metadata)
     @State private var files: [DataFile] = []
     @State private var rowCount: String = "…"
+    @State private var columnCount: String = "…"
     // Slower (actual data) — its own loader
     @State private var sample: QueryResult?
     @State private var sampleLoading = false
@@ -48,7 +49,7 @@ struct TableInspector: View {
     private var metrics: some View {
         HStack(spacing: 30) {
             Metric(label: "Rows", value: rowCount)
-            Metric(label: "Columns", value: "\(node.children?.count ?? 0)")
+            Metric(label: "Columns", value: columnCount)
             Metric(label: "Files", value: "\(dataFiles.count)")
             Metric(label: "Size", value: totalSize > 0 ? Format.bytes(totalSize) : "—")
         }
@@ -119,6 +120,7 @@ struct TableInspector: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             files = parsed
             rowCount = rows
+            columnCount = "\(node.children?.count ?? 0)"
         }
     }
 

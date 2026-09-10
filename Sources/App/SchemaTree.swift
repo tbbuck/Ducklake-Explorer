@@ -59,9 +59,11 @@ private struct SchemaRow: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            model.selectedNodeID = node.id
-            if isBranch { toggle() }   // name click == arrow click
+        .onTapGesture(count: 2) {
+            if isBranch { toggle() }          // double-click toggles
+        }
+        .onTapGesture(count: 1) {
+            model.selectedNodeID = node.id    // single click just selects
         }
         .contextMenu {
             if node.kind != .catalog && node.kind != .schema {
