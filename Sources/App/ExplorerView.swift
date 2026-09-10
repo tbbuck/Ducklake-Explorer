@@ -17,8 +17,17 @@ struct ExplorerView: View {
                     HistoryRail()
                         .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
                 } content: {
-                    SchemaTree()
-                        .navigationSplitViewColumnWidth(min: 220, ideal: 270)
+                    ZStack {
+                        if model.detailMode == .metadata {
+                            CatalogTableList()
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                        } else {
+                            SchemaTree()
+                                .transition(.move(edge: .leading).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.3), value: model.detailMode == .metadata)
+                    .navigationSplitViewColumnWidth(min: 220, ideal: 270)
                 } detail: {
                     DetailPane()
                 }
@@ -63,5 +72,36 @@ struct ExplorerView: View {
                     .padding()
             }
         }
+        .overlay {
+            if model.isLoading {
+                LakeLoadingView(name: model.lakeName ?? "lake")
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: model.isLoading)
+    }
+}
+
+/// The full-cover loader shown while a lake is first attaching; fades out over the populated
+/// three-pane once loading completes.
+private struct LakeLoadingView: View {
+    let name: String
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            Palette.base
+            VStack(spacing: 18) {
+                ProgressView()
+                    .controlSize(.large)
+                    .scaleEffect(pulse ? 1.0 : 0.94)
+                    .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: pulse)
+                Text("Opening \(name)…")
+                    .font(.stratumUI(14, .medium))
+                    .foregroundStyle(Palette.textSecondary)
+            }
+        }
+        .ignoresSafeArea()
+        .onAppear { pulse = true }
     }
 }

@@ -13,7 +13,7 @@ struct DetailPane: View {
             } else if model.detailMode == .map {
                 MapPane()
             } else if model.detailMode == .metadata {
-                MetadataBrowser()
+                CatalogTableGrid()
             } else if let node = model.selectedNode, node.kind == .table || node.kind == .view {
                 TableInspector(node: node)
             } else {

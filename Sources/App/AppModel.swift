@@ -19,6 +19,7 @@ final class AppModel {
     var selectedNodeID: String?
     var loadingTableID: String?          // the table whose sample data the inspector is loading
     var expandedNodeIDs: Set<String> = []
+    var metaTable: String?               // selected raw catalog table in Meta mode
 
     // Workbench
     enum DetailMode: String, CaseIterable, Sendable {
@@ -89,8 +90,10 @@ final class AppModel {
     // MARK: Opening
 
     func open(path: String) async {
+        let previousPath = lakePath
         isLoading = true
         errorText = nil
+        lakePath = path            // reveal the three-pane + title behind the loader straight away
         defer { isLoading = false }
         do {
             let session = try LakeSession()
@@ -99,7 +102,6 @@ final class AppModel {
                 ? .sqliteFile(path) : .duckDBFile(path)
             try await session.attach(source)
             self.session = session
-            self.lakePath = path
 
             let settings = try await session.query(
                 "SELECT catalog_type, extension_version FROM ducklake_settings('lake');")
@@ -120,6 +122,7 @@ final class AppModel {
             addRecent(path: path)
         } catch {
             errorText = String(describing: error)
+            lakePath = previousPath   // failed open — stay on the previous lake (or the connect screen)
         }
     }
 
@@ -284,10 +287,9 @@ final class AppModel {
         if expandedNodeIDs.isEmpty {
             expandedNodeIDs = Self.expandedByDefault(schemaRoots)   // catalog + schema; tables collapsed
         }
-        // Keep the current selection if it still exists as-of this snapshot; else pick richest.
-        if selectedNodeID == nil || Self.find(selectedNodeID!, in: schemaRoots) == nil {
-            selectedNodeID = tableNodes.max { ($0.children?.count ?? 0) < ($1.children?.count ?? 0) }?.id
-        }
+        // No auto-select — the first state is the empty "select a table" placeholder. Only
+        // drop a selection that no longer exists as-of this snapshot.
+        if let id = selectedNodeID, Self.find(id, in: schemaRoots) == nil { selectedNodeID = nil }
     }
 
     /// Catalog and schema nodes open by default; tables start collapsed.

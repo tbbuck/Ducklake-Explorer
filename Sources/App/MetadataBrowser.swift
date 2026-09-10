@@ -1,33 +1,24 @@
 import SwiftUI
 import DuckDBKit
 
-/// "The metadata is data." Browses the raw `ducklake_*` catalog tables (via the attached
-/// `lake_meta` catalog) in the results grid.
-struct MetadataBrowser: View {
-    @Environment(AppModel.self) private var model
+/// "The metadata is data." In Meta mode the raw `ducklake_*` catalog tables (via the attached
+/// `lake_meta` catalog) take over the two right panes: `CatalogTableList` slides into the middle
+/// pane in place of the schema tree, and `CatalogTableGrid` shows the selected table in the
+/// detail pane. Both share `model.metaTable` so the selection survives leaving and re-entering
+/// Meta mode.
 
+/// The middle pane while in Meta mode: the list of raw catalog tables.
+struct CatalogTableList: View {
+    @Environment(AppModel.self) private var model
     @State private var tables: [CatalogTableRow] = []
-    @State private var selected: String?
-    @State private var result: QueryResult?
-    @State private var error: String?
 
     var body: some View {
-        HStack(spacing: 0) {
-            list
-            Divider().overlay(Palette.hairline)
-            grid
-        }
-        .task { await loadList() }
-        .task(id: selected ?? "") { await loadTable() }
-    }
-
-    private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
             PanelLabel("Catalog tables")
             ScrollView {
                 LazyVStack(spacing: 1) {
                     ForEach(tables) { table in
-                        Button { selected = table.name } label: {
+                        Button { model.metaTable = table.name } label: {
                             HStack(spacing: 8) {
                                 Text(table.short).font(.stratumMono(11)).foregroundStyle(Palette.textPrimary)
                                     .lineLimit(1).truncationMode(.middle)
@@ -36,7 +27,7 @@ struct MetadataBrowser: View {
                             }
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .frame(maxWidth: .infinity)
-                            .background(selected == table.name ? Palette.accentSoft : .clear)
+                            .background(model.metaTable == table.name ? Palette.accentSoft : .clear)
                         }
                         .buttonStyle(.plain)
                     }
@@ -44,21 +35,9 @@ struct MetadataBrowser: View {
                 .padding(.vertical, 4)
             }
         }
-        .frame(width: 250)
+        .frame(maxWidth: .infinity)
         .background(Palette.surface)
-    }
-
-    @ViewBuilder private var grid: some View {
-        if let error {
-            ScrollView {
-                Text(error).font(.stratumMono(11)).foregroundStyle(Palette.danger)
-                    .textSelection(.enabled).padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            }
-        } else if let result, !result.columns.isEmpty {
-            ResultsGrid(result: result)
-        } else {
-            Color.clear
-        }
+        .task { await loadList() }
     }
 
     private func loadList() async {
@@ -79,18 +58,50 @@ struct MetadataBrowser: View {
             let count = (estimate == nil || estimate == 10_000) ? "" : Format.count(estimate!)
             return CatalogTableRow(name: name, rows: count)
         }
-        if selected == nil { selected = tables.first(where: { $0.name == "ducklake_snapshot" })?.name ?? tables.first?.name }
+        if model.metaTable == nil {
+            model.metaTable = tables.first(where: { $0.name == "ducklake_snapshot" })?.name ?? tables.first?.name
+        }
+    }
+}
+
+/// The detail pane while in Meta mode: the selected catalog table's rows.
+struct CatalogTableGrid: View {
+    @Environment(AppModel.self) private var model
+    @State private var result: QueryResult?
+    @State private var error: String?
+    @State private var loading = false
+
+    var body: some View {
+        ZStack {
+            if let error {
+                ScrollView {
+                    Text(error).font(.stratumMono(11)).foregroundStyle(Palette.danger)
+                        .textSelection(.enabled).padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else if let result, !result.columns.isEmpty {
+                ResultsGrid(result: result)
+            } else {
+                Color.clear
+            }
+            if loading { ProgressView().controlSize(.small) }
+        }
+        .task(id: model.metaTable ?? "") { await loadTable() }
     }
 
     private func loadTable() async {
-        guard let selected else { return }
+        guard let table = model.metaTable else { result = nil; return }
+        loading = true
         error = nil
         do {
-            result = try await model.query("SELECT * FROM lake_meta.\"\(selected)\" LIMIT 5000;", maxRows: 5000)
+            let r = try await model.query("SELECT * FROM lake_meta.\"\(table)\" LIMIT 5000;", maxRows: 5000)
+            guard model.metaTable == table else { return }   // superseded by a newer selection
+            result = r
         } catch {
+            guard model.metaTable == table else { return }
             self.error = String(describing: error)
             result = nil
         }
+        if model.metaTable == table { loading = false }
     }
 }
 
