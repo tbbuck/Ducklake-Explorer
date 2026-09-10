@@ -2,3 +2,13 @@ CLAUDE.md
 .claude
 claude-scripts/
 claude-sql/
+
+# Xcode / SwiftPM
+*.xcodeproj/
+.build/
+.swiftpm/
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+.DS_Store
