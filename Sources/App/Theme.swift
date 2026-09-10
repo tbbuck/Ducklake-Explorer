@@ -18,6 +18,7 @@ enum Palette {
 
     // Text
     static let textPrimary   = Color.stratum(0x223038, 0xE3E5EA)  // text
+    static let textPrimarySoft = Color.stratum(0x223038, 0xD1D5DD)  // schema names — softer white in dark
     static let textSecondary = Color.stratum(0x515B5A, 0xB4B8C0)  // muted
     static let textTertiary  = Color.stratum(0x6C736E, 0x8B9099)  // muted-2
 

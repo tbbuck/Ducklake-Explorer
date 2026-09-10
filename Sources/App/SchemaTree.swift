@@ -42,7 +42,7 @@ private struct SchemaRow: View {
             iconView
             Text(node.name)
                 .font(node.kind == .column ? .stratumMono(11) : .stratumUI(13, .medium))
-                .foregroundStyle(Palette.textPrimary).lineLimit(1)
+                .foregroundStyle(Palette.textPrimarySoft).lineLimit(1)
             Spacer(minLength: 4)
             if let type = node.dataType {
                 Text(type).font(.stratumMono(10)).foregroundStyle(typeColor(type)).lineLimit(1)
