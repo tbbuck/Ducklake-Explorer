@@ -21,7 +21,7 @@ final class AppModel {
 
     // Workbench
     enum DetailMode: String, CaseIterable, Sendable {
-        case inspect = "Inspect", query = "Query", diff = "Diff", map = "Map"
+        case inspect = "Inspect", query = "Query", diff = "Diff", map = "Map", metadata = "Meta"
     }
     var detailMode: DetailMode = .inspect
     var sql: String = ""
