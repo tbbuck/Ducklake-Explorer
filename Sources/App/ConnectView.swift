@@ -57,13 +57,14 @@ struct ConnectView: View {
 
     private var openPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            PanelLabel("Open a lake")
+            PanelLabel("Open lake")
             VStack(alignment: .leading, spacing: 12) {
                 Button(action: openLocal) {
                     Label("Choose a .ducklake / .sqlite file…", systemImage: "folder")
                         .font(.stratumUI(13, .medium)).frame(maxWidth: .infinity).padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent).tint(Palette.accent)
+                .pointerStyle(.link)
 
                 Text("OR A REMOTE CATALOG").font(.stratumMono(9, .medium)).tracking(0.8)
                     .foregroundStyle(Palette.textTertiary).padding(.top, 4)
@@ -119,6 +120,7 @@ struct RecentLakeCard: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.hairline))
         }
         .buttonStyle(.plain)
+        .pointerStyle(.link)
         .overlay(alignment: .topTrailing) {
             Button(action: remove) {
                 Image(systemName: "xmark.circle.fill")
@@ -128,6 +130,7 @@ struct RecentLakeCard: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .pointerStyle(.link)
             .help("Forget this lake")
             .opacity(hovering ? 1 : 0)
             .animation(.easeInOut(duration: 0.15), value: hovering)
