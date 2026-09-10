@@ -248,6 +248,31 @@ final class AppModel {
         return try await session.query(sql, maxRows: maxRows)
     }
 
+    /// Lists this machine's DuckDB secrets (redacted) via a throwaway session, so the secrets
+    /// view works before any lake is open. Read-only; the app never enters or stores credentials.
+    func fetchSecrets() async -> [SecretInfo] {
+        do {
+            let session = try LakeSession()
+            try await session.loadCoreExtensions()
+            let result = try await session.query("""
+                SELECT name, type, provider, persistent,
+                       array_to_string(scope, ', ') AS scope
+                FROM duckdb_secrets()
+                ORDER BY type, name;
+                """)
+            return result.rows.map { row in
+                SecretInfo(
+                    name: row[0].displayString,
+                    type: row[1].displayString,
+                    provider: row.count > 2 ? row[2].displayString : "",
+                    persistent: row.count > 3 && row[3].displayString == "true",
+                    scope: row.count > 4 && !row[4].isNull ? row[4].displayString : "")
+            }
+        } catch {
+            return []
+        }
+    }
+
     func activate(_ snapshot: Snapshot) {
         guard snapshot.id != activeSnapshot?.id, let session else { return }
         activeSnapshot = snapshot

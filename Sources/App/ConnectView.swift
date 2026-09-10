@@ -7,6 +7,7 @@ struct ConnectView: View {
     @Environment(AppModel.self) private var model
     let openLocal: () -> Void
     @State private var remoteURL = ""
+    @State private var showSecrets = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,6 +29,7 @@ struct ConnectView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.base)
+        .sheet(isPresented: $showSecrets) { SecretsView().environment(model) }
     }
 
     private var recents: some View {
@@ -82,6 +84,10 @@ struct ConnectView: View {
                       systemImage: "lock.shield")
                     .font(.stratumUI(10)).foregroundStyle(Palette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+                Button { showSecrets = true } label: {
+                    Label("View DuckDB secrets", systemImage: "key.horizontal").font(.stratumUI(11, .medium))
+                }
+                .buttonStyle(.plain).foregroundStyle(Palette.accent).pointerStyle(.link)
             }
             .padding(16)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10))
