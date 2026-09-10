@@ -19,7 +19,7 @@ struct ResultsGrid: NSViewRepresentable {
         table.backgroundColor = .stratumGrid(0xEFEEE7, 0x1E1F22)
         table.gridStyleMask = [.solidHorizontalGridLineMask]
         table.gridColor = .stratumGrid(0xDAD5C9, 0x393B40)
-        table.rowHeight = 22
+        table.rowHeight = 24
         table.intercellSpacing = NSSize(width: 8, height: 0)
         table.headerView = StratumHeaderView()
         table.allowsColumnResizing = true
@@ -83,10 +83,16 @@ struct ResultsGrid: NSViewRepresentable {
             let field = tableView.makeView(withIdentifier: tableColumn.identifier, owner: self) as? NSTextField
                 ?? {
                     let textField = NSTextField(labelWithString: "")
+                    let cell = VCenterTextFieldCell()           // vertically centres text in the row
+                    cell.isBordered = false
+                    cell.drawsBackground = false
+                    cell.usesSingleLineMode = true
+                    cell.lineBreakMode = .byTruncatingTail
+                    textField.cell = cell
+                    textField.isEditable = false
+                    textField.isSelectable = false
                     textField.identifier = tableColumn.identifier
                     textField.font = stratumMonoFont(12)
-                    textField.lineBreakMode = .byTruncatingTail
-                    textField.cell?.usesSingleLineMode = true
                     return textField
                 }()
 
@@ -141,33 +147,45 @@ final class StratumHeaderCell: NSTableHeaderCell {
     var typeColor: NSColor = .secondaryLabelColor
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
+        guard cellFrame.isValidForDrawing else { return }
         NSColor.stratumGrid(0xFCFBF6, 0x303236).setFill()          // panel-2 header ground
         cellFrame.fill()
-        NSColor.stratumGrid(0xDAD5C9, 0x393B40).setFill()          // bottom hairline
-        NSRect(x: cellFrame.minX, y: cellFrame.maxY - 1, width: cellFrame.width, height: 1).fill()
+        let flipped = controlView.isFlipped
+        NSColor.stratumGrid(0xDAD5C9, 0x393B40).setFill()          // hairline along the bottom edge
+        NSRect(x: cellFrame.minX, y: flipped ? cellFrame.maxY - 1 : cellFrame.minY,
+               width: cellFrame.width, height: 1).fill()
         drawInterior(withFrame: cellFrame, in: controlView)
     }
 
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
+        guard cellFrame.isValidForDrawing else { return }
         let inset: CGFloat = 9
         let width = max(0, cellFrame.width - inset - 6)
+        let flipped = controlView.isFlipped
+        // Name on top, type below — positioned from the visual top of the header, either flip.
+        let nameY = flipped ? cellFrame.minY + 9 : cellFrame.maxY - 24
+        let typeY = flipped ? cellFrame.minY + 27 : cellFrame.maxY - 41
         (stringValue as NSString).draw(
-            in: NSRect(x: cellFrame.minX + inset, y: cellFrame.minY + 5, width: width, height: 15),
+            in: NSRect(x: cellFrame.minX + inset, y: nameY, width: width, height: 15),
             withAttributes: [.font: stratumMonoFont(11, semibold: true),
                              .foregroundColor: NSColor.stratumGrid(0x223038, 0xE3E5EA)])
         (typeText as NSString).draw(
-            in: NSRect(x: cellFrame.minX + inset, y: cellFrame.minY + 21, width: width, height: 12),
+            in: NSRect(x: cellFrame.minX + inset, y: typeY, width: width, height: 14),
             withAttributes: [.font: stratumMonoFont(9), .foregroundColor: typeColor])
     }
 }
 
-/// The header view, forced flipped (top-left origin, so the cell's two-line drawing is
-/// predictable) and to a fixed taller height for the name-over-type layout.
+/// The header view — forced to a fixed, taller height for the name-over-type layout.
 final class StratumHeaderView: NSTableHeaderView {
-    override var isFlipped: Bool { true }
+    static let height: CGFloat = 48
+    // NSTableView resizes the header via setFrameSize (which bypasses the `frame` setter), so
+    // both must pin the height for the taller header to actually take and push the body down.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(NSSize(width: newSize.width, height: Self.height))
+    }
     override var frame: NSRect {
         get { super.frame }
-        set { super.frame = NSRect(origin: newValue.origin, size: NSSize(width: newValue.width, height: 40)) }
+        set { super.frame = NSRect(origin: newValue.origin, size: NSSize(width: newValue.width, height: Self.height)) }
     }
 }
 
@@ -177,6 +195,30 @@ private func stratumMonoFont(_ size: CGFloat, semibold: Bool = false) -> NSFont 
     return NSFont(name: name, size: size)
         ?? NSFont(name: "JetBrains Mono", size: size)
         ?? .monospacedSystemFont(ofSize: size, weight: semibold ? .semibold : .regular)
+}
+
+/// A text field cell that vertically centres its single-line text within the row.
+final class VCenterTextFieldCell: NSTextFieldCell {
+    override func titleRect(forBounds rect: NSRect) -> NSRect {
+        let textHeight = cellSize(forBounds: rect).height
+        var r = rect
+        let delta = (rect.height - textHeight) / 2
+        if delta > 0 { r.origin.y += delta; r.size.height -= delta }
+        return super.titleRect(forBounds: r)
+    }
+    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
+        super.drawInterior(withFrame: titleRect(forBounds: cellFrame), in: controlView)
+    }
+}
+
+private extension NSRect {
+    /// Guards custom drawing against the degenerate / NaN frames that can appear transiently
+    /// during header relayout — a bad rect crashes CoreText.
+    var isValidForDrawing: Bool {
+        width > 1 && height > 1
+            && origin.x.isFinite && origin.y.isFinite
+            && size.width.isFinite && size.height.isFinite
+    }
 }
 
 private extension NSColor {
