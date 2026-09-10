@@ -7,30 +7,31 @@ import DuckDBKit
 /// detail pane. Both share `model.metaTable` so the selection survives leaving and re-entering
 /// Meta mode.
 
-/// The middle pane while in Meta mode: the list of raw catalog tables.
+/// The middle pane while in Meta mode: the raw catalog tables, grouped under the UI-spec
+/// headings (Snapshots · Schema · Data files · Statistics · Tags·Settings · Inlined data).
 struct CatalogTableList: View {
     @Environment(AppModel.self) private var model
     @State private var tables: [CatalogTableRow] = []
+
+    /// Tables bucketed into their catalog group, in display order, dropping empty groups.
+    private var grouped: [(group: CatalogGroup, rows: [CatalogTableRow])] {
+        CatalogGroup.allCases.compactMap { group in
+            let rows = tables.filter { CatalogGroup.of($0.name) == group }
+            return rows.isEmpty ? nil : (group, rows)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PanelLabel("Catalog tables")
             ScrollView {
-                LazyVStack(spacing: 1) {
-                    ForEach(tables) { table in
-                        Button { model.metaTable = table.name } label: {
-                            HStack(spacing: 8) {
-                                Text(table.short).font(.stratumMono(11)).foregroundStyle(Palette.textPrimary)
-                                    .lineLimit(1).truncationMode(.middle)
-                                Spacer(minLength: 6)
-                                Text(table.rows).font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
-                            }
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .frame(maxWidth: .infinity)
-                            .background(model.metaTable == table.name ? Palette.accentSoft : .clear)
-                            .contentShape(Rectangle())   // whole row is the hit target, not just the text
-                        }
-                        .buttonStyle(.plain)
+                LazyVStack(alignment: .leading, spacing: 1) {
+                    ForEach(grouped, id: \.group) { section in
+                        Text(section.group.title)
+                            .font(.stratumMono(9, .medium)).tracking(0.9)
+                            .foregroundStyle(Palette.textTertiary)
+                            .padding(.horizontal, 10).padding(.top, 14).padding(.bottom, 3)
+                        ForEach(section.rows) { table in row(table) }
                     }
                 }
                 .padding(.vertical, 4)
@@ -39,6 +40,22 @@ struct CatalogTableList: View {
         .frame(maxWidth: .infinity)
         .background(Palette.surface)
         .task { await loadList() }
+    }
+
+    private func row(_ table: CatalogTableRow) -> some View {
+        Button { model.metaTable = table.name } label: {
+            HStack(spacing: 8) {
+                Text(table.short).font(.stratumMono(11)).foregroundStyle(Palette.textPrimary)
+                    .lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 6)
+                Text(table.rows).font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .frame(maxWidth: .infinity)
+            .background(model.metaTable == table.name ? Palette.accentSoft : .clear)
+            .contentShape(Rectangle())   // whole row is the hit target, not just the text
+        }
+        .buttonStyle(.plain)
     }
 
     private func loadList() async {
@@ -103,6 +120,34 @@ struct CatalogTableGrid: View {
             result = nil
         }
         if model.metaTable == table { loading = false }
+    }
+}
+
+/// The UI-spec buckets for the `ducklake_*` catalog tables. `allCases` order is the display
+/// order; inlined-data tables sink to the bottom.
+enum CatalogGroup: String, CaseIterable {
+    case snapshots, schema, dataFiles, statistics, tagsSettings, inlined
+
+    var title: String {
+        switch self {
+        case .snapshots:    return "SNAPSHOTS"
+        case .schema:       return "SCHEMA"
+        case .dataFiles:    return "DATA FILES"
+        case .statistics:   return "STATISTICS"
+        case .tagsSettings: return "TAGS · SETTINGS"
+        case .inlined:      return "INLINED DATA"
+        }
+    }
+
+    /// Classifies a `ducklake_*` table by name (checks are ordered — most specific first).
+    static func of(_ name: String) -> CatalogGroup {
+        let n = name.hasPrefix("ducklake_") ? String(name.dropFirst("ducklake_".count)) : name
+        if n.hasPrefix("inlined_") { return .inlined }
+        if n == "snapshot" || n == "snapshot_changes" { return .snapshots }
+        if n.contains("stat") { return .statistics }
+        if n.contains("file") { return .dataFiles }
+        if n.contains("tag") || n == "metadata" { return .tagsSettings }
+        return .schema
     }
 }
 
