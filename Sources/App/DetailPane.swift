@@ -6,7 +6,9 @@ struct DetailPane: View {
 
     var body: some View {
         Group {
-            if let node = model.selectedNode, node.kind == .table || node.kind == .view {
+            if model.detailMode == .query {
+                WorkbenchView()
+            } else if let node = model.selectedNode, node.kind == .table || node.kind == .view {
                 TableInspector(node: node)
             } else {
                 EmptyState()

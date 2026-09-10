@@ -3,9 +3,8 @@ CLAUDE.md
 claude-scripts/
 claude-sql/
 
-# Local dev lake (large, not a committed fixture)
-herd-lake.sqlite
-herd-lake.sqlite.files/
+# Local dev lake (large, not a committed fixture) + its sqlite sidecars
+herd-lake.sqlite*
 
 # Xcode / SwiftPM
 *.xcodeproj/

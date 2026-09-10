@@ -8,6 +8,7 @@ struct ExplorerView: View {
     @State private var showImporter = false
 
     var body: some View {
+        @Bindable var model = model
         Group {
             if model.lakePath == nil {
                 ConnectPlaceholder(open: { showImporter = true })
@@ -27,7 +28,18 @@ struct ExplorerView: View {
         .background(Palette.base)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                if model.lakePath != nil { SnapshotChip(snapshot: model.activeSnapshot) }
+                if model.lakePath != nil {
+                    HStack(spacing: 12) {
+                        Picker("", selection: $model.detailMode) {
+                            ForEach(AppModel.DetailMode.allCases, id: \.self) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .fixedSize()
+                        SnapshotChip(snapshot: model.activeSnapshot)
+                    }
+                }
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 if model.lakePath != nil { ThemeToggle() }

@@ -19,6 +19,17 @@ final class AppModel {
     var selectedNodeID: String?
     var expandedNodeIDs: Set<String> = []
 
+    // Workbench
+    enum DetailMode: String, CaseIterable, Sendable { case inspect = "Inspect", query = "Query" }
+    var detailMode: DetailMode = .inspect
+    var sql: String = ""
+    private(set) var queryResult: QueryResult?
+    private(set) var queryError: String?
+    private(set) var isQuerying = false
+    private(set) var queryRowsCapped = false
+    private var queryTask: Task<Void, Never>?
+    private let queryRowCap = 5000
+
     // Chrome
     var appearanceOverride: ColorScheme?
     private(set) var errorText: String?
@@ -64,9 +75,64 @@ final class AppModel {
             }
             try await loadSnapshots()
             try await loadSchema()
+            if sql.isEmpty {
+                sql = """
+                    SELECT snapshot_id, snapshot_time, schema_version
+                    FROM ducklake_snapshots('lake')
+                    ORDER BY snapshot_id DESC
+                    LIMIT 200;
+                    """
+            }
         } catch {
             errorText = String(describing: error)
         }
+    }
+
+    // MARK: Workbench
+
+    /// Runs the editor's SQL off the main thread, capping collected rows for the grid.
+    /// A light read-only guard rejects obvious mutations (the attach is read-only anyway).
+    func runQuery() {
+        guard session != nil else { return }
+        let head = String(sql.drop(while: \.isWhitespace).prefix(while: { $0.isLetter || $0 == "_" })).uppercased()
+        let banned: Set<String> = ["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
+                                   "TRUNCATE", "MERGE", "ATTACH", "DETACH", "COPY"]
+        if banned.contains(head) {
+            queryError = "Read-only explorer — \(head) statements aren't allowed."
+            queryResult = nil
+            return
+        }
+
+        queryTask?.cancel()
+        isQuerying = true
+        queryError = nil
+        queryRowsCapped = false
+        let sqlToRun = sql
+        let cap = queryRowCap
+        queryTask = Task { [weak self] in
+            guard let self, let session = self.session else { return }
+            do {
+                let result = try await session.query(sqlToRun, maxRows: cap)
+                if !Task.isCancelled {
+                    self.queryResult = result
+                    self.queryRowsCapped = result.rowCount >= cap
+                    self.queryError = nil
+                }
+            } catch {
+                if !Task.isCancelled {
+                    self.queryError = String(describing: error)
+                    self.queryResult = nil
+                }
+            }
+            if !Task.isCancelled { self.isQuerying = false }
+        }
+    }
+
+    /// Interrupts an in-flight query (thread-safe) and drops the task.
+    func cancelQuery() {
+        session?.cancel()
+        queryTask?.cancel()
+        isQuerying = false
     }
 
     /// Runs an arbitrary read-only query against the open lake (used by detail panes).
