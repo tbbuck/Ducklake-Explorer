@@ -110,6 +110,32 @@ final class DuckDBTests: XCTestCase {
         let r = try db.run("SELECT i FROM range(5000) t(i);", maxRows: 10)
         XCTAssertEqual(r.rowCount, 10)
     }
+
+    // MARK: - Startup configuration
+
+    /// The bundle depends on startup-only flags reaching the engine through `duckdb_open_ext`.
+    /// The `.app` path itself can't be unit-tested, but the config plumbing can: prove the flags
+    /// round-trip and the connection still runs queries.
+    func testOpensWithStartupConfig() throws {
+        let db = try DuckDB(config: DuckDBConfig(allowUnsignedExtensions: true, disableAutoinstall: true))
+        XCTAssertEqual(try db.run("SELECT 42;").scalarString, "42")
+        XCTAssertEqual(try db.run("SELECT current_setting('allow_unsigned_extensions');").scalarString, "true")
+        XCTAssertEqual(try db.run("SELECT current_setting('autoinstall_known_extensions');").scalarString, "false")
+    }
+
+    /// A populated `extensionDirectory` is applied as the engine's `extension_directory`.
+    func testExtensionDirectoryConfigApplied() throws {
+        let dir = NSTemporaryDirectory() + "ducklake-ext-test"
+        let db = try DuckDB(config: DuckDBConfig(extensionDirectory: dir))
+        let applied = try XCTUnwrap(db.run("SELECT current_setting('extension_directory');").scalarString)
+        XCTAssertTrue(applied.hasSuffix("ducklake-ext-test"), "extension_directory not applied: \(applied)")
+    }
+
+    /// The default (empty) config must remain byte-for-byte the historical open path.
+    func testDefaultConfigIsUnchanged() throws {
+        let db = try DuckDB()
+        XCTAssertEqual(try db.run("SELECT 1;").scalarString, "1")
+    }
 }
 
 /// Shared fixture path, resolved from this file's location.

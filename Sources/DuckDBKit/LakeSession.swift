@@ -47,18 +47,33 @@ public actor LakeSession {
     private var source: LakeSource?
     private var alias = "lake"
 
-    public init() throws {
-        db = try DuckDB()
+    public init(config: DuckDBConfig = .init()) throws {
+        db = try DuckDB(config: config)
     }
 
-    /// Loads the extensions every lake needs: `ducklake` (required) and `spatial` (geometry).
-    public func loadCoreExtensions() throws {
-        try db.run("LOAD ducklake;")
-        try db.run("LOAD spatial;")
-        // For remote (S3/HTTPS) data files. Best-effort: local lakes don't need these, and a
-        // machine without them can still explore local catalogs.
-        try? db.run("LOAD httpfs;")
-        try? db.run("LOAD aws;")
+    /// Loads the extensions every lake needs. `ducklake` and `spatial` are required; the remote
+    /// (`httpfs`/`aws`) and SQLite-catalog (`sqlite_scanner`) extensions are best-effort, so a
+    /// machine (or bundle) without them can still open local DuckDB lakes.
+    ///
+    /// When `directory` is given (a shipped bundle's pinned extension dir) each extension is
+    /// `LOAD`ed by explicit path, so nothing is autoinstalled from the network or resolved out
+    /// of `~/.duckdb`. When nil (dev builds / tests) they load by name from the engine's default
+    /// extension directory, exactly as before.
+    public func loadCoreExtensions(fromDirectory directory: String? = nil) throws {
+        func load(_ name: String, required: Bool) throws {
+            let statement: String
+            if let directory {
+                statement = "LOAD '\(LakeSource.escape("\(directory)/\(name).duckdb_extension"))';"
+            } else {
+                statement = "LOAD \(name);"
+            }
+            if required { try db.run(statement) } else { _ = try? db.run(statement) }
+        }
+        try load("ducklake", required: true)
+        try load("spatial", required: true)
+        try load("httpfs", required: false)
+        try load("aws", required: false)
+        try load("sqlite_scanner", required: false)
     }
 
     /// Attaches a catalog READ-ONLY under `alias`, optionally making it the active catalog.
@@ -71,7 +86,7 @@ public actor LakeSession {
         // Best-effort: attach the raw catalog DB for column stats / metadata browsing. This is
         // a pure enrichment — if it fails, the core read-only exploration is unaffected.
         if let rawAttach = source.rawCatalogAttach(alias: "\(alias)_meta") {
-            try? db.run(rawAttach)
+            _ = try? db.run(rawAttach)
         }
         return result
     }

@@ -17,6 +17,42 @@ public enum DuckError: Error, CustomStringConvertible {
     }
 }
 
+/// Startup configuration for the engine. The default (`.init()`) reproduces the historical
+/// behaviour of opening with a nil `duckdb_config`, so headless tests and dev builds are
+/// unaffected. A shipped, notarized bundle populates it so the app loads its *own* `libduckdb`
+/// + extensions with no `~/.duckdb` lookup and no network:
+///   - `extensionDirectory` → DuckDB's `extension_directory` (where autoloading resolves).
+///   - `allowUnsignedExtensions` must be `true` once the extensions are re-signed with our
+///     Developer ID for notarization: that invalidates DuckDB's own extension signature, and
+///     this flag is *startup-only* (it cannot be changed by a later `SET`), which is why it
+///     has to travel through `duckdb_open_ext` rather than a `SET` statement.
+///   - `disableAutoinstall` turns off `autoinstall_known_extensions` so a missing extension
+///     never reaches out to the network from the shipped app.
+public struct DuckDBConfig: Sendable {
+    public var extensionDirectory: String?
+    public var allowUnsignedExtensions: Bool
+    public var disableAutoinstall: Bool
+
+    public init(extensionDirectory: String? = nil,
+                allowUnsignedExtensions: Bool = false,
+                disableAutoinstall: Bool = false) {
+        self.extensionDirectory = extensionDirectory
+        self.allowUnsignedExtensions = allowUnsignedExtensions
+        self.disableAutoinstall = disableAutoinstall
+    }
+
+    /// The `(name, value)` engine settings this maps to; empty for the default config.
+    var settings: [(name: String, value: String)] {
+        var s = [(name: String, value: String)]()
+        if let extensionDirectory { s.append(("extension_directory", extensionDirectory)) }
+        if allowUnsignedExtensions { s.append(("allow_unsigned_extensions", "true")) }
+        if disableAutoinstall { s.append(("autoinstall_known_extensions", "false")) }
+        return s
+    }
+
+    var isEmpty: Bool { settings.isEmpty }
+}
+
 /// A thin, in-process wrapper over the locally-linked libduckdb.
 ///
 /// **Concurrency:** `@unchecked Sendable` under a strict contract — `run(_:)` must be
@@ -27,15 +63,37 @@ public final class DuckDB: @unchecked Sendable {
     private var db: duckdb_database?
     private var conn: duckdb_connection?
 
-    /// Opens a database. `path` nil (the default) opens an in-memory database, which is
-    /// what we use before `ATTACH`-ing a DuckLake catalog.
-    public init(path: String? = nil) throws {
+    /// Opens a database. `path` nil (the default) opens an in-memory database, which is what
+    /// we use before `ATTACH`-ing a DuckLake catalog. `config` defaults to empty, which passes
+    /// a nil `duckdb_config` to the engine (the historical open path); a populated config is
+    /// applied at startup — see `DuckDBConfig`.
+    public init(path: String? = nil, config: DuckDBConfig = .init()) throws {
         var err: UnsafeMutablePointer<CChar>?
+
+        // Only allocate a duckdb_config when settings are actually requested, so the default
+        // open path is exactly what it was before this parameter existed. The defer is armed
+        // before any throwing set, so a rejected option can't leak the config.
+        var cfg: duckdb_config?
+        defer { if cfg != nil { duckdb_destroy_config(&cfg) } }
+        if !config.isEmpty {
+            guard duckdb_create_config(&cfg) == DuckDBSuccess else {
+                throw DuckError.open("could not allocate a DuckDB configuration")
+            }
+            for setting in config.settings {
+                let state = setting.name.withCString { name in
+                    setting.value.withCString { value in duckdb_set_config(cfg, name, value) }
+                }
+                if state != DuckDBSuccess {
+                    throw DuckError.open("rejected config option '\(setting.name)' = '\(setting.value)'")
+                }
+            }
+        }
+
         let state: duckdb_state = {
             if let path {
-                return path.withCString { duckdb_open_ext($0, &db, nil, &err) }
+                return path.withCString { duckdb_open_ext($0, &db, cfg, &err) }
             }
-            return duckdb_open_ext(nil, &db, nil, &err)
+            return duckdb_open_ext(nil, &db, cfg, &err)
         }()
         if state != DuckDBSuccess {
             let message = err.map { String(cString: $0) } ?? "unknown error"
