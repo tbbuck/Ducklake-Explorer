@@ -89,13 +89,40 @@ final class AppModel {
 
     // MARK: Engine
 
-    /// A fresh read-only session configured for this context (see `EngineSupport`). Extensions
-    /// load by name: DuckDB resolves each from its `extension_directory`, autoinstalling any
-    /// that aren't present yet — so a packaged app's first run fetches them from DuckDB's repo.
-    private static func makeLoadedSession() async throws -> LakeSession {
+    /// Secrets the user created as session-only: held in memory (never written to disk) and
+    /// re-applied to each new connection, since each lake opens its own DuckDB instance.
+    private var sessionSecrets: [DuckDBSecret] = []
+
+    /// A fresh read-only session configured for this context (see `EngineSupport`), with any
+    /// session-only secrets re-applied. Extensions load by name: DuckDB resolves each from its
+    /// `extension_directory`, autoinstalling any that aren't present yet — so a packaged app's
+    /// first run fetches them from DuckDB's repo.
+    private func makeLoadedSession() async throws -> LakeSession {
         let session = try LakeSession(config: EngineSupport.config())
         try await session.loadCoreExtensions()
+        for spec in sessionSecrets {
+            try? await session.createSecret(spec, persistent: false)
+        }
         return session
+    }
+
+    /// Creates a DuckDB secret from the user's input. A persistent secret is written to
+    /// `~/.duckdb` (survives restarts, visible to the DuckDB CLI); a session-only one is kept in
+    /// memory and re-applied to each connection this run. Returns nil on success, else the
+    /// engine's error message. The app builds the statement but never stores the key itself for
+    /// persistent secrets — DuckDB owns that file.
+    func createSecret(_ spec: DuckDBSecret, persistent: Bool) async -> String? {
+        do {
+            if persistent {
+                let session = try await makeLoadedSession()
+                try await session.createSecret(spec, persistent: true)
+            } else {
+                sessionSecrets.append(spec)
+            }
+            return nil
+        } catch {
+            return String(describing: error)
+        }
     }
 
     // MARK: Opening
@@ -107,7 +134,7 @@ final class AppModel {
         lakePath = path            // reveal the three-pane + title behind the loader straight away
         defer { isLoading = false }
         do {
-            let session = try await Self.makeLoadedSession()
+            let session = try await makeLoadedSession()
             let source: LakeSource = path.lowercased().hasSuffix(".sqlite")
                 ? .sqliteFile(path) : .duckDBFile(path)
             try await session.attach(source)
@@ -262,7 +289,7 @@ final class AppModel {
     /// view works before any lake is open. Read-only; the app never enters or stores credentials.
     func fetchSecrets() async -> [SecretInfo] {
         do {
-            let session = try await Self.makeLoadedSession()
+            let session = try await makeLoadedSession()
             let result = try await session.query("""
                 SELECT name, type, provider, persistent,
                        array_to_string(scope, ', ') AS scope

@@ -80,12 +80,12 @@ struct ConnectView: View {
                     }
                     .disabled(remoteURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                Label("Read-only. Remote data uses your existing DuckDB secrets — no credentials are entered or stored here.",
+                Label("Read-only. Remote data uses DuckDB secrets — manage or add one below.",
                       systemImage: "lock.shield")
                     .font(.stratumUI(10)).foregroundStyle(Palette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button { showSecrets = true } label: {
-                    Label("View DuckDB secrets", systemImage: "key.horizontal").font(.stratumUI(11, .medium))
+                    Label("DuckDB secrets", systemImage: "key.horizontal").font(.stratumUI(11, .medium))
                 }
                 .buttonStyle(.plain).foregroundStyle(Palette.accent).pointerStyle(.link)
             }

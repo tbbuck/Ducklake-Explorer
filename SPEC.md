@@ -83,8 +83,10 @@ keeps data in DuckLake. Representative tasks:
   the DuckDB secret manager (`duckdb_secrets()`) — name, type, provider
   (`config`/`credential_chain`), scope, persistence — and the user picks the one that
   grants read access to the lake's files (a secret whose scope covers the catalog URL is
-  flagged). The app **does not enter, create, or store credentials** in v1 (see 6.4);
-  a bare `ATTACH 'ducklake:<secret>'` can also carry the whole connection config.
+  flagged). The app can also **create** an S3 secret (`TYPE s3`) from the secrets view — either
+  persistent (written by DuckDB under `~/.duckdb`) or session-only (held in memory for the run)
+  — so someone with no DuckDB install can reach remote catalogs without the CLI (see 6.4). A
+  bare `ATTACH 'ducklake:<secret>'` can also carry the whole connection config.
 - All attaches are **read-only** and enforced as such:
   - DuckDB: `ATTACH 'ducklake:catalog.ducklake' AS lake (READ_ONLY);`
   - SQLite: `ATTACH 'ducklake:sqlite:catalog.sqlite' AS lake (READ_ONLY);`
@@ -166,10 +168,12 @@ For a selected table:
 
 ### 6.4 Security & privacy
 - Read-only by construction. No telemetry.
-- **Remote credentials are delegated to DuckDB's secret manager.** v1 only *selects* an
-  existing DuckDB secret (persistent in `~/.duckdb`, or a session secret) to authorise
-  storage access — the app never accepts, displays, or persists credential material, and
-  keeps only the chosen secret's **name** in recents.
+- **Remote credentials are delegated to DuckDB's secret manager.** The app *selects* existing
+  DuckDB secrets and *creates* new S3 ones: a persistent secret is written by DuckDB to its own
+  `~/.duckdb/stored_secrets` (unencrypted, exactly as the DuckDB CLI would write it), or a
+  session-only secret is held in memory for the run and re-applied per connection. The secret
+  key is entered in a secure field and never echoed back; the app stores no credential material
+  of its own and keeps only a chosen secret's **name** in recents.
 - *Post-v1:* optionally accept user-entered credentials, holding them in the **macOS
   Keychain** and materialising a **temporary** DuckDB secret per session rather than
   DuckDB's on-disk persistent secret store.

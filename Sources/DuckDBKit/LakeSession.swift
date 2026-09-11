@@ -99,6 +99,14 @@ public actor LakeSession {
         return result
     }
 
+    /// Creates a DuckDB secret on this session's connection. A persistent secret is written by
+    /// DuckDB to `~/.duckdb/stored_secrets` (so future sessions and the CLI see it); a
+    /// non-persistent one lasts only for this connection. Creating a secret configures storage
+    /// access and never touches an attached lake, so it's outside the read-only query path.
+    public func createSecret(_ secret: DuckDBSecret, persistent: Bool) throws {
+        try db.run(secret.statement(persistent: persistent))
+    }
+
     /// Runs a read-only query, optionally capping collected rows. Throws `CancellationError`
     /// without touching the engine if the calling task was cancelled before the actor reached
     /// it — so a query superseded while queued behind another never actually runs.

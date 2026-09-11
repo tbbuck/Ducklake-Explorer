@@ -145,6 +145,32 @@ final class DuckDBTests: XCTestCase {
         let db = try DuckDB()
         XCTAssertEqual(try db.run("SELECT 1;").scalarString, "1")
     }
+
+    // MARK: - Secret creation
+
+    /// The CREATE SECRET statement emits only non-empty fields, escapes string values, quotes the
+    /// name, and folds multiple scopes into a list.
+    func testSecretStatementShape() {
+        let one = DuckDBSecret(name: "my s3", keyID: "AKIA", secret: "p'w", endpoint: "e.com",
+                               region: "us-east-1", urlStyle: "path", scope: "s3://b/")
+        XCTAssertEqual(one.statement(persistent: true),
+            #"CREATE PERSISTENT SECRET "my s3" (TYPE s3, KEY_ID 'AKIA', SECRET 'p''w', ENDPOINT 'e.com', REGION 'us-east-1', URL_STYLE 'path', SCOPE 's3://b/');"#)
+        let multi = DuckDBSecret(keyID: "K", secret: "S", scope: "s3://a/, s3://b/")
+        XCTAssertEqual(multi.statement(persistent: false),
+            #"CREATE SECRET (TYPE s3, KEY_ID 'K', SECRET 'S', SCOPE ('s3://a/', 's3://b/'));"#)
+    }
+
+    /// The generated statement is valid DuckDB SQL and actually registers a secret.
+    func testCreateSecretRunsInDuckDB() throws {
+        let db = try DuckDB()
+        try db.run("INSTALL httpfs;")
+        try db.run("LOAD httpfs;")
+        let s = DuckDBSecret(name: "test_s3", keyID: "AKIA", secret: "shh", region: "us-east-1",
+                             urlStyle: "path", scope: "s3://bucket/")
+        try db.run(s.statement(persistent: false))
+        let r = try db.run("SELECT name FROM duckdb_secrets() WHERE name = 'test_s3';")
+        XCTAssertEqual(r.rows.first?.first, .string("test_s3"))
+    }
 }
 
 /// Shared fixture path, resolved from this file's location.
