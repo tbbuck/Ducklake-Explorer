@@ -13,10 +13,11 @@ concurrency:
 
 jobs:
   build-test:
-    # arm64 runner → Homebrew lives at /opt/homebrew, matching Package.swift's link path.
-    # NOTE: the app targets macOS 26, so the runner image must provide Xcode 26+ (the macOS 26
-    # SDK). If GitHub's image lags, pin `xcode-version` below or move to a self-hosted runner.
-    runs-on: macos-15
+    # macos-26 (Apple Silicon): matches our macOS 26 deployment target + Xcode 26, so the OS
+    # frameworks line up with the toolchain. Building on macos-15 crashed actool compiling the
+    # asset catalog with a CoreMedia/AVFCore "missing from root that overrides" skew. arm64 →
+    # Homebrew at /opt/homebrew, matching Package.swift's link path.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 

@@ -57,7 +57,7 @@ Light or dark, the whole thing follows suit — chrome, grid, and basemap includ
 
 ## Prerequisites
 
-- macOS 15+ (the build machine is currently macOS 26 / Xcode 26).
+- macOS 26+ (Tahoe) — the app's deployment target; building needs Xcode 26.
 - Homebrew `duckdb`, which provides `libduckdb.dylib` + headers: `brew install duckdb`.
 - `brew install xcodegen`.
 

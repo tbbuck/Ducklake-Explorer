@@ -19,7 +19,9 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-15
+    # macos-26 (Apple Silicon) matches the macOS 26 target + Xcode 26, so actool/asset-catalog
+    # compilation doesn't hit the CoreMedia/AVFCore framework skew seen on macos-15.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
