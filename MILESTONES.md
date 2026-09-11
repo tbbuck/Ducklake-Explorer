@@ -31,8 +31,25 @@ lives on S3):
   is now optional.
 
 **Remaining:** column-distribution histograms; polish (auto-scroll the rail to the active
-snapshot, SQL syntax highlighting, keyboard nav); and **M5 packaging** — bundle `libduckdb`
-+ extensions and Developer-ID sign/notarize so it runs on a clean Mac.
+snapshot, SQL syntax highlighting, keyboard nav).
+
+## Packaging & CI — 2026-09-11
+
+**M5 packaging is built and locally verified.** The app opens with a bundled-engine
+`DuckDBConfig` (`extension_directory`, `allow_unsigned_extensions`, no autoinstall);
+`scripts/bundle-duckdb-engine.sh` copies `libduckdb` + the five pinned extensions into the
+`.app` and rewrites install names to `@rpath` (no `/opt/homebrew` reference remains);
+`scripts/release.sh` signs inside-out with Developer ID + hardened runtime and packages a DMG.
+DuckDB appends a `duckdb_signature` footer that `codesign` rejects but DuckDB needs, so
+`scripts/sign-duckdb-extension.sh` strips it, signs the clean Mach-O, then restores it. A
+headless `--selftest` mode proves the **signed** app loads all five extensions from the bundle
+under hardened-runtime library validation (no `disable-library-validation`); `codesign --verify
+--deep --strict` passes. CI: `.github/workflows/ci.yml` (build + `swift test` on push/PR) and
+`release.yml` (tag → notarized DMG).
+
+**Not yet proven:** the actual **notarization** round-trip — it's wired but needs a notary
+profile (Apple ID). Also verify a GitHub runner provides Xcode 26 (the macOS 26 SDK), and run
+the packaged app on a **clean Mac with no Homebrew/DuckDB** for the M5 acceptance.
 
 ---
 
