@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements for the notarized, non-sandboxed build.
+
+  Deliberately empty. The app is not sandboxed, so arbitrary file access and outbound
+  S3/HTTPS need no entitlement; and the bundled libduckdb + DuckDB extensions are re-signed
+  with our own Developer ID, so hardened-runtime library validation accepts them without
+  com.apple.security.cs.disable-library-validation. If a future extension cannot be signed
+  under our team, add that one key here rather than weakening library validation wholesale.
+-->
+<plist version="1.0">
+<dict/>
+</plist>
