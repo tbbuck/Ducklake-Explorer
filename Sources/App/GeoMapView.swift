@@ -93,21 +93,46 @@ struct GeoMapView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
         webView.navigationDelegate = context.coordinator
-        let page = Self.html.replacingOccurrences(of: "__MAPTILER_KEY__", with: MapConfig.maptilerKey)
-        webView.loadHTMLString(page, baseURL: URL(string: "https://tiles.local/"))
+        let style = Self.styleName(for: context.environment.colorScheme)
+        context.coordinator.style = style
+        webView.loadHTMLString(Self.page(style: style), baseURL: URL(string: "https://tiles.local/"))
         context.coordinator.webView = webView
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        let style = Self.styleName(for: context.environment.colorScheme)
+        if style != context.coordinator.style {                // appearance flipped — swap the basemap
+            context.coordinator.style = style
+            context.coordinator.reload(Self.page(style: style))
+        }
         context.coordinator.inject(geojson)
+    }
+
+    /// A dark basemap for dark chrome, a light one for light — matching the app's appearance.
+    static func styleName(for scheme: ColorScheme) -> String {
+        scheme == .dark ? "dataviz-dark" : "dataviz"
+    }
+
+    private static func page(style: String) -> String {
+        html.replacingOccurrences(of: "__MAPTILER_KEY__", with: MapConfig.maptilerKey)
+            .replacingOccurrences(of: "__MAP_STYLE__", with: style)
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         weak var webView: WKWebView?
+        var style = "dataviz"
         private var loaded = false
         private var lastInjected: String?
         private var pending: String?
+
+        /// Reloads the page after a basemap (appearance) change; the pending GeoJSON re-injects
+        /// once the new style finishes loading.
+        func reload(_ html: String) {
+            loaded = false
+            lastInjected = nil
+            webView?.loadHTMLString(html, baseURL: URL(string: "https://tiles.local/"))
+        }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             loaded = true
@@ -133,7 +158,7 @@ struct GeoMapView: NSViewRepresentable {
     const TEAL = '#1E7A72';
     const map = new maplibregl.Map({
       container: 'map',
-      style: 'https://api.maptiler.com/maps/dataviz/style.json?key=__MAPTILER_KEY__',
+      style: 'https://api.maptiler.com/maps/__MAP_STYLE__/style.json?key=__MAPTILER_KEY__',
       center: [-2.2, 54.2], zoom: 4.4, attributionControl: false
     });
     map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-right');
