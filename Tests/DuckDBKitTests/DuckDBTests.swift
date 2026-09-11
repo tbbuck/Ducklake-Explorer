@@ -13,9 +13,18 @@ final class DuckDBTests: XCTestCase {
 
     private func openFixture() throws -> DuckDB {
         let db = try DuckDB()
+        // INSTALL first so a clean machine (e.g. CI) without pre-installed extensions bootstraps
+        // them from DuckDB's repo; a no-op once cached.
+        try db.run("INSTALL ducklake;")
         try db.run("LOAD ducklake;")
+        try db.run("INSTALL spatial;")
         try db.run("LOAD spatial;")
-        try db.run("ATTACH 'ducklake:\(fixturePath)' AS lake (READ_ONLY);")
+        // Override the fixture's relative stored data_path with its absolute location, so reads
+        // resolve regardless of the test runner's working directory.
+        try db.run("""
+            ATTACH 'ducklake:\(fixturePath)' AS lake
+                (READ_ONLY, DATA_PATH '\(TestFixture.dataPath)', OVERRIDE_DATA_PATH true);
+            """)
         try db.run("USE lake;")
         return db
     }
@@ -148,4 +157,8 @@ enum TestFixture {
             .appendingPathComponent("Fixtures/sample.ducklake")
             .path
     }
+
+    /// Absolute data dir for the fixture (`…/sample.ducklake.files`). The committed catalog
+    /// stores this path relative, so tests pass it as an explicit DATA_PATH override.
+    static var dataPath: String { path + ".files" }
 }

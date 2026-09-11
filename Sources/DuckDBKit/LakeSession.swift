@@ -46,6 +46,7 @@ public actor LakeSession {
     private nonisolated let db: DuckDB
     private var source: LakeSource?
     private var alias = "lake"
+    private var dataPath: String?
 
     public init(config: DuckDBConfig = .init()) throws {
         db = try DuckDB(config: config)
@@ -77,11 +78,18 @@ public actor LakeSession {
     }
 
     /// Attaches a catalog READ-ONLY under `alias`, optionally making it the active catalog.
+    ///
+    /// `dataPath` overrides the catalog's recorded data path (via `DATA_PATH` +
+    /// `OVERRIDE_DATA_PATH`). Real lakes pass nil and use their stored path; it exists for lakes
+    /// whose stored `data_path` isn't resolvable as-is — notably the test fixture, which stores a
+    /// relative path that would otherwise resolve against the process CWD.
     @discardableResult
-    public func attach(_ source: LakeSource, as alias: String = "lake", activate: Bool = true) throws -> QueryResult {
+    public func attach(_ source: LakeSource, as alias: String = "lake", activate: Bool = true,
+                       dataPath: String? = nil) throws -> QueryResult {
         self.source = source
         self.alias = alias
-        let result = try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (READ_ONLY);")
+        self.dataPath = dataPath
+        let result = try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (\(attachOptions()));")
         if activate { try db.run("USE \(alias);") }
         // Best-effort: attach the raw catalog DB for column stats / metadata browsing. This is
         // a pure enrichment — if it fails, the core read-only exploration is unaffected.
@@ -106,9 +114,21 @@ public actor LakeSession {
         guard let source else { return }
         try db.run("USE memory;")
         try db.run("DETACH \(alias);")
-        let options = version.map { "READ_ONLY, SNAPSHOT_VERSION \($0)" } ?? "READ_ONLY"
-        try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (\(options));")
+        let extra = version.map { "SNAPSHOT_VERSION \($0)" } ?? ""
+        try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (\(attachOptions(extra: extra)));")
         try db.run("USE \(alias);")
+    }
+
+    /// Builds the `ATTACH … (...)` option list: always `READ_ONLY`, plus a `DATA_PATH` override
+    /// when set, plus any extra option (e.g. `SNAPSHOT_VERSION n`). Keeping the override here
+    /// means it's reapplied on the time-travel re-attach, not just the first attach.
+    private func attachOptions(extra: String = "") -> String {
+        var options = "READ_ONLY"
+        if let dataPath {
+            options += ", DATA_PATH '\(LakeSource.escape(dataPath))', OVERRIDE_DATA_PATH true"
+        }
+        if !extra.isEmpty { options += ", \(extra)" }
+        return options
     }
 
     /// Cancels the query currently executing on this session. Safe to call from any task

@@ -1,6 +1,9 @@
 -- Builds the sample DuckLake used by tests and the M0 demo.
--- Run via build_fixture.sh (which cd's into Fixtures/ first, so the relative
--- catalog path resolves here and DuckLake stores a relative data_path).
+-- Run via build_fixture.sh (which cd's into Fixtures/ first). The ATTACH sets an explicit
+-- relative DATA_PATH, so the catalog stores 'sample.ducklake.files/' rather than an absolute
+-- machine path. DuckLake resolves a relative data_path against the catalog file's own directory,
+-- so the committed fixture is portable (CI, a clean Mac, any clone) — verified by moving a lake
+-- and reopening it from a neutral working directory.
 --
 -- Exercises, across ~10 snapshots: table creation, partitioning, a sort order,
 -- two insert batches, a DELETE (delete file), schema evolution (ADD COLUMN +
@@ -13,7 +16,7 @@ INSTALL spatial;
 LOAD spatial;
 
 -- Creating a DuckLake is just attaching it (CREATE_IF_NOT_EXISTS defaults true).
-ATTACH 'ducklake:sample.ducklake' AS lake;
+ATTACH 'ducklake:sample.ducklake' AS lake (DATA_PATH 'sample.ducklake.files');
 USE lake;
 
 -- snapshot: create table with a geometry column

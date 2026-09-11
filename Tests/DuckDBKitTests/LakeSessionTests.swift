@@ -9,7 +9,7 @@ final class LakeSessionTests: XCTestCase {
     private func openSession() async throws -> LakeSession {
         let session = try LakeSession()
         try await session.loadCoreExtensions()
-        try await session.attach(.duckDBFile(TestFixture.path))
+        try await session.attach(.duckDBFile(TestFixture.path), dataPath: TestFixture.dataPath)
         return session
     }
 

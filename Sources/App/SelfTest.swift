@@ -36,7 +36,13 @@ enum SelfTest {
                 try await session.loadCoreExtensions()   // autoinstalls from DuckDB's repo if missing
                 let source: LakeSource = lakePath.lowercased().hasSuffix(".sqlite")
                     ? .sqliteFile(lakePath) : .duckDBFile(lakePath)
-                try await session.attach(source)
+                // If the catalog has a sibling "<catalog>.files" data dir (the fixture layout),
+                // override its stored (relative) data_path with the absolute location.
+                let candidate = lakePath + ".files"
+                var isDirectory: ObjCBool = false
+                let dataPath = FileManager.default.fileExists(atPath: candidate, isDirectory: &isDirectory)
+                    && isDirectory.boolValue ? candidate : nil
+                try await session.attach(source, dataPath: dataPath)
                 let snapshots = try await session.query(
                     "SELECT count(*) FROM ducklake_snapshots('lake');").scalarString ?? "?"
                 let origin = extensionDirectory ?? "system (~/.duckdb)"
