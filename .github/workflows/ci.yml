@@ -1,0 +1,43 @@
+name: CI
+
+# Build + engine tests on every push to main and every PR. No signing here — that's the
+# release workflow's job.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    # arm64 runner → Homebrew lives at /opt/homebrew, matching Package.swift's link path.
+    # NOTE: the app targets macOS 26, so the runner image must provide Xcode 26+ (the macOS 26
+    # SDK). If GitHub's image lags, pin `xcode-version` below or move to a self-hosted runner.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install build tools + DuckDB
+        run: brew install xcodegen duckdb
+
+      - name: Engine tests (DuckDBKit)
+        run: swift test
+
+      - name: Build app (Release, unsigned)
+        run: |
+          xcodegen generate
+          xcodebuild \
+            -project DuckLakeExplorer.xcodeproj \
+            -scheme DuckLakeExplorer \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            -quiet build
