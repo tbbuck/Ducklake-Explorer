@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct ExplorerView: View {
     @Environment(AppModel.self) private var model
     @State private var showImporter = false
+    @State private var dropTargeted = false
 
     var body: some View {
         @Bindable var model = model
@@ -83,6 +84,27 @@ struct ExplorerView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: model.isLoading)
+        // Drop a catalog file (.ducklake/.duckdb/.sqlite) anywhere on the window to open it.
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first(where: Self.isCatalogFile) else { return false }
+            Task { await model.open(path: url.path) }
+            return true
+        } isTargeted: { dropTargeted = $0 }
+        .overlay {
+            if dropTargeted {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Palette.accent, lineWidth: 3)
+                    .padding(4)
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: dropTargeted)
+    }
+
+    /// Catalog file types opened on drop (DuckDB- or SQLite-backed DuckLake catalogs).
+    private static let catalogFileExtensions: Set<String> = ["ducklake", "duckdb", "sqlite", "sqlite3", "db"]
+    private static func isCatalogFile(_ url: URL) -> Bool {
+        catalogFileExtensions.contains(url.pathExtension.lowercased())
     }
 }
 
