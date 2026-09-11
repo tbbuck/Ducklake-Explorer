@@ -35,21 +35,34 @@ snapshot, SQL syntax highlighting, keyboard nav).
 
 ## Packaging & CI — 2026-09-11
 
-**M5 packaging is built and locally verified.** The app opens with a bundled-engine
-`DuckDBConfig` (`extension_directory`, `allow_unsigned_extensions`, no autoinstall);
-`scripts/bundle-duckdb-engine.sh` copies `libduckdb` + the five pinned extensions into the
-`.app` and rewrites install names to `@rpath` (no `/opt/homebrew` reference remains);
-`scripts/release.sh` signs inside-out with Developer ID + hardened runtime and packages a DMG.
-DuckDB appends a `duckdb_signature` footer that `codesign` rejects but DuckDB needs, so
-`scripts/sign-duckdb-extension.sh` strips it, signs the clean Mach-O, then restores it. A
-headless `--selftest` mode proves the **signed** app loads all five extensions from the bundle
-under hardened-runtime library validation (no `disable-library-validation`); `codesign --verify
---deep --strict` passes. CI: `.github/workflows/ci.yml` (build + `swift test` on push/PR) and
-`release.yml` (tag → notarized DMG).
+**M5 packaging: runtime-installed extensions, notarization confirmed end-to-end.**
 
-**Not yet proven:** the actual **notarization** round-trip — it's wired but needs a notary
-profile (Apple ID). Also verify a GitHub runner provides Xcode 26 (the macOS 26 SDK), and run
-the packaged app on a **clean Mac with no Homebrew/DuckDB** for the M5 acceptance.
+Bundling the `.duckdb_extension` files proved a dead end — each has a `duckdb_signature`
+metadata+signature footer after the Mach-O that Apple's notary rejects ("The signature of the
+binary is invalid"), and DuckDB confirms signing dynamically-loaded extensions isn't currently
+possible ([duckdb#16926](https://github.com/duckdb/duckdb/issues/16926)). So the app bundles
+only libduckdb and installs the extensions at runtime:
+
+- `scripts/bundle-duckdb-engine.sh` copies **libduckdb** into `Contents/Frameworks` and
+  rewrites its install name to `@rpath` (no Homebrew dependency at runtime).
+- The app points `extension_directory` at `~/Library/Application Support/DuckLake Explorer/…`
+  and `INSTALL`s + `LOAD`s ducklake/spatial/httpfs/aws/sqlite_scanner there on first use. They
+  arrive DuckDB-signed and load under the `com.apple.security.cs.disable-library-validation`
+  entitlement (`Config/DuckLakeExplorer.entitlements`).
+- `scripts/release.sh` builds → bundles → Developer-ID signs (hardened runtime) → runs the
+  headless `--selftest` → notarizes → staples → DMG. CI: `.github/workflows/ci.yml`
+  (build + `swift test`) and `release.yml` (tag → notarized DMG).
+
+**Confirmed:** a signed build cold-autoinstalls all five extensions into a fresh Application
+Support dir and loads them; `codesign --verify --deep --strict` passes; **`notarytool` returns
+Accepted, the app staples, and `spctl` passes it as "Notarized Developer ID."**
+
+**Trade-off accepted:** a new user's **first run needs network** to fetch the extensions
+(this relaxes the earlier "no network install" goal, which was incompatible with
+notarization). Later runs and offline use work from the cached copies.
+
+**Still to verify:** that a GitHub runner provides Xcode 26 (the macOS 26 SDK), and a real
+**clean-Mac** first-run (no Homebrew/DuckDB).
 
 ---
 

@@ -42,7 +42,8 @@ It is a *reader and explorer*, never a mutator. See Non-goals.
   expiry (`ducklake_expire_snapshots`), cleanup, or orphan-file deletion.
 - **No Postgres/MySQL catalog backends** (DuckDB/SQLite only; `postgres_scanner`
   isn't even installed locally).
-- **No bundled/forked DuckDB engine** — we link the locally installed library.
+- **No forked DuckDB engine** — we use the stock library (linked from Homebrew in dev; a
+  bundled copy of that same `libduckdb` in distribution), never a modified build.
 - Not cross-platform (macOS only), not a general-purpose SQL IDE, not a BI tool.
 
 ## 3. Users & primary use cases
@@ -185,9 +186,14 @@ For a selected table:
   the deployment floor (see §8); distribution bundles its own copy (§9).
 - **Extensions**: `ducklake` is required; `httpfs` + `aws` for remote; `spatial` for
   geometry; `sqlite_scanner` for SQLite catalogs. These are **loadable** (not baked
-  into the dylib), installed under `~/.duckdb/extensions`. Dev builds may rely on the
-  user's extension dir; **distribution must bundle pinned extension binaries** and set
-  `extension_directory` (see Open Questions).
+  into the dylib), installed under `~/.duckdb/extensions`. Dev builds rely on the user's
+  extension dir. **Distribution cannot bundle the extension binaries** — each carries a
+  `duckdb_signature` footer after the Mach-O that Apple's notary rejects, and DuckDB confirms
+  signing dynamically-loaded extensions isn't currently possible
+  ([duckdb#16926](https://github.com/duckdb/duckdb/issues/16926)). Instead the app points
+  `extension_directory` at a per-user Application Support folder and **autoinstalls them at
+  runtime** (first run needs network), loaded under the `disable-library-validation` entitlement
+  (see Open Questions).
 - **UI**: SwiftUI for structure/navigation; the **results grid uses an AppKit
   `NSTableView`** (via `NSViewRepresentable`) for virtualization SwiftUI's `Table`
   can't match at scale.
@@ -212,10 +218,14 @@ For a selected table:
    as *data files only, catalog stays local*, we can narrow the connection UI.
 2. **Distribution & sandbox** — ✅ resolved: **Developer-ID + notarized, non-sandboxed**
    (M5), which suits arbitrary file access, loadable extensions, and outbound S3.
-3. **Bundling for distribution** — ship the app with its own pinned `libduckdb` *and*
-   the `ducklake`/`httpfs`/`aws`/`spatial`/`sqlite_scanner` extension binaries (set
-   `extension_directory`, fix the dylib install name), so end users need neither Homebrew
-   nor a network install. Dev builds link Homebrew and use `~/.duckdb/extensions`.
+3. **Bundling for distribution** — ✅ resolved, with a revision. Ship the app with its own
+   pinned `libduckdb` (bundled into `Contents/Frameworks`, install name fixed to `@rpath`), so
+   users need no Homebrew. The extension binaries **cannot** be bundled (their `duckdb_signature`
+   footer isn't notarizable — [duckdb#16926](https://github.com/duckdb/duckdb/issues/16926)), so
+   the app autoinstalls them at runtime into Application Support under the
+   `disable-library-validation` entitlement. This **relaxes the original "no network install"
+   goal**: a new user's first run needs network to fetch the extensions; later/offline runs use
+   the cached copies. Dev builds link Homebrew and use `~/.duckdb/extensions`.
 4. **macOS minimum** — ✅ resolved: **macOS 26** (matches the Homebrew libduckdb build).
 5. **Map provider** — ✅ resolved: **MapLibre GL + MapTiler** in a WKWebView (the native
    SDK deferred as higher-risk on macOS).
