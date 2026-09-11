@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 #
-# Make a built "DuckLake Explorer.app" self-contained: bundle libduckdb and the pinned
-# DuckLake extensions, and rewrite install names so the app needs neither Homebrew nor
-# ~/.duckdb at runtime. Idempotent — safe to run repeatedly on the same bundle.
+# Bundle libduckdb into a built "DuckLake Explorer.app" and rewrite install names so the app
+# needs no Homebrew at runtime. Idempotent — safe to run repeatedly on the same bundle.
 #
-# It does NOT codesign; signing + notarization live in scripts/release.sh, which runs this
-# first and then signs the whole bundle inside-out (the extensions load with
-# allow_unsigned_extensions because re-signing invalidates DuckDB's own signature).
+# Only libduckdb is bundled. The DuckLake/spatial/httpfs/aws/sqlite_scanner extensions are NOT
+# bundled: a .duckdb_extension carries a metadata+signature footer after the Mach-O that Apple's
+# notary rejects, and DuckDB confirms signing dynamically-loaded extensions isn't currently
+# possible (duckdb/duckdb#16926). Instead the app autoinstalls them at runtime into Application
+# Support and loads them under the disable-library-validation entitlement.
+#
+# It does NOT codesign; signing + notarization live in scripts/release.sh.
 #
 #   Usage: scripts/bundle-duckdb-engine.sh "/path/to/DuckLake Explorer.app"
 #
-# Optional overrides (for CI or non-standard installs):
+# Optional override (for CI or non-standard installs):
 #   DUCKDB_LIB=/abs/libduckdb.dylib   pin the source dylib explicitly
 #
 set -euo pipefail
@@ -18,19 +21,7 @@ set -euo pipefail
 APP="${1:?usage: bundle-duckdb-engine.sh <path-to-.app>}"
 [ -d "$APP" ] || { echo "error: not an app bundle: $APP" >&2; exit 1; }
 
-# The extensions the app loads at runtime (see LakeSession.loadCoreExtensions).
-EXTENSIONS=(ducklake spatial httpfs aws sqlite_scanner)
-
-# --- Resolve engine version, platform, source dylib, extension source dir ----------------
-DUCKDB_BIN="$(command -v duckdb || true)"
-[ -n "$DUCKDB_BIN" ] || { echo "error: duckdb CLI not found on PATH" >&2; exit 1; }
-VERSION="$("$DUCKDB_BIN" --version | awk '{print $1}')"     # e.g. v1.5.5
-case "$(uname -m)" in
-  arm64)  PLATFORM=osx_arm64 ;;
-  x86_64) PLATFORM=osx_amd64 ;;
-  *) echo "error: unsupported architecture $(uname -m)" >&2; exit 1 ;;
-esac
-
+# --- Resolve the source dylib ------------------------------------------------------------
 SRC_DYLIB="${DUCKDB_LIB:-}"
 if [ -z "$SRC_DYLIB" ]; then
   for cand in \
@@ -42,34 +33,13 @@ if [ -z "$SRC_DYLIB" ]; then
 fi
 [ -f "$SRC_DYLIB" ] || { echo "error: libduckdb.dylib not found (set DUCKDB_LIB)" >&2; exit 1; }
 
-EXT_SRC_DIR="$HOME/.duckdb/extensions/$VERSION/$PLATFORM"
-
-# --- Ensure the pinned extensions are present locally (install any missing) ---------------
-missing=()
-for e in "${EXTENSIONS[@]}"; do
-  [ -f "$EXT_SRC_DIR/$e.duckdb_extension" ] || missing+=("$e")
-done
-if [ "${#missing[@]}" -gt 0 ]; then
-  echo "installing missing extensions for $VERSION/$PLATFORM: ${missing[*]}"
-  sql=""
-  for e in "${missing[@]}"; do sql+="INSTALL $e; "; done
-  "$DUCKDB_BIN" -c "$sql"
-fi
-
-# --- Copy into the bundle ----------------------------------------------------------------
+# --- Copy into Contents/Frameworks + fix its install name --------------------------------
 FRAMEWORKS="$APP/Contents/Frameworks"
-EXT_DST_DIR="$APP/Contents/Resources/duckdb-extensions"
-mkdir -p "$FRAMEWORKS" "$EXT_DST_DIR"
-
+mkdir -p "$FRAMEWORKS"
 DST_DYLIB="$FRAMEWORKS/libduckdb.dylib"
 cp -f "$SRC_DYLIB" "$DST_DYLIB"
 chmod u+w "$DST_DYLIB"
 install_name_tool -id "@rpath/libduckdb.dylib" "$DST_DYLIB"
-
-for e in "${EXTENSIONS[@]}"; do
-  cp -f "$EXT_SRC_DIR/$e.duckdb_extension" "$EXT_DST_DIR/$e.duckdb_extension"
-  chmod u+w "$EXT_DST_DIR/$e.duckdb_extension"
-done
 
 # --- Rewrite the main executable's libduckdb reference + rpath (idempotent) ---------------
 EXE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
@@ -88,5 +58,4 @@ while read -r stale; do
   [ -n "$stale" ] && install_name_tool -delete_rpath "$stale" "$BIN" || true
 done < <(otool -l "$BIN" | awk '/ path / && /duckdb/ {print $2}')
 
-echo "bundled libduckdb $VERSION ($PLATFORM) + ${#EXTENSIONS[@]} extensions into:"
-echo "  $APP"
+echo "bundled libduckdb into: $APP"

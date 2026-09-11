@@ -41,28 +41,20 @@ xcodegen generate
 xcodebuild -project DuckLakeExplorer.xcodeproj -scheme "$SCHEME" -configuration "$CONFIG" \
   -derivedDataPath "$DDP" -quiet clean build
 
-echo "==> 2/6  Bundle libduckdb + extensions"
+echo "==> 2/6  Bundle libduckdb"
 "$R/scripts/bundle-duckdb-engine.sh" "$APP"
 
-echo "==> 3/6  Sign inside-out (Developer ID + hardened runtime)"
-# Extensions first — each needs its DuckDB footer stripped, signed, then restored.
-find "$APP/Contents/Resources/duckdb-extensions" -name '*.duckdb_extension' -print0 |
-  while IFS= read -r -d '' ext; do
-    "$R/scripts/sign-duckdb-extension.sh" "$ext" "$IDENTITY"
-  done
-# The bundled dylib is a plain Mach-O — sign it normally.
+echo "==> 3/6  Sign (Developer ID + hardened runtime)"
+# Bundled dylib first, then the app last. The app carries the disable-library-validation
+# entitlement so it can dlopen the extensions DuckDB autoinstalls at runtime. No extensions
+# are bundled, so the whole thing --deep --strict verifies cleanly.
 codesign --force --timestamp --options runtime --sign "$IDENTITY" \
   "$APP/Contents/Frameworks/libduckdb.dylib"
-# The app last (seals Frameworks + Resources).
 codesign --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" \
   --sign "$IDENTITY" "$APP"
-# Verify the app and its nested framework code. The extensions sit in Resources with a DuckDB
-# footer after their signature, so they're sealed as resources rather than --deep-verified as
-# code; the signed app self-test below is what proves they actually load.
-codesign --verify --verbose=2 "$APP"
-codesign --verify --verbose=2 "$APP/Contents/Frameworks/libduckdb.dylib"
+codesign --verify --deep --strict --verbose=2 "$APP"
 
-echo "==> 4/6  Self-test the signed app (loads the bundled engine under library validation)"
+echo "==> 4/6  Self-test the signed app (autoinstalls + loads extensions at runtime)"
 out="$("$APP/Contents/MacOS/$APP_NAME" --selftest "$FIXTURE")"
 echo "    $out"
 case "$out" in

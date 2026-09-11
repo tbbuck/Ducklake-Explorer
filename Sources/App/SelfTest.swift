@@ -23,13 +23,7 @@ enum SelfTest {
         }
         let lakePath = args[flag + 1]
 
-        // Same resolution as AppModel: a packaged .app ships its extensions here; otherwise nil
-        // (falls back to the machine's ~/.duckdb, which is the dev/unbundled case).
-        let extensionDirectory: String? = {
-            guard let resources = Bundle.main.resourcePath else { return nil }
-            let dir = resources + "/duckdb-extensions"
-            return FileManager.default.fileExists(atPath: dir) ? dir : nil
-        }()
+        let extensionDirectory = EngineSupport.extensionDirectory()
 
         // Bridge the async load path to this synchronous entry point. The box carries the
         // result out of the task; the semaphore's signal→wait ordering makes that read safe.
@@ -38,11 +32,8 @@ enum SelfTest {
         let done = DispatchSemaphore(value: 0)
         Task {
             do {
-                let config = extensionDirectory.map {
-                    DuckDBConfig(extensionDirectory: $0, allowUnsignedExtensions: true, disableAutoinstall: true)
-                } ?? DuckDBConfig()
-                let session = try LakeSession(config: config)
-                try await session.loadCoreExtensions(fromDirectory: extensionDirectory)
+                let session = try LakeSession(config: EngineSupport.config())
+                try await session.loadCoreExtensions()   // autoinstalls from DuckDB's repo if missing
                 let source: LakeSource = lakePath.lowercased().hasSuffix(".sqlite")
                     ? .sqliteFile(lakePath) : .duckDBFile(lakePath)
                 try await session.attach(source)

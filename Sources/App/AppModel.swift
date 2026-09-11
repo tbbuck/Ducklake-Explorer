@@ -89,28 +89,12 @@ final class AppModel {
 
     // MARK: Engine
 
-    /// When running from a packaged `.app`, the pinned DuckDB extensions ship here (and
-    /// `libduckdb` is bundled alongside); dev builds return nil and fall back to the machine's
-    /// `~/.duckdb`. Resolved once — the bundle layout can't change at runtime.
-    private static let bundledExtensionDirectory: String? = {
-        guard let resources = Bundle.main.resourcePath else { return nil }
-        let dir = resources + "/duckdb-extensions"
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDirectory),
-              isDirectory.boolValue else { return nil }
-        return dir
-    }()
-
-    /// A fresh read-only session with the right engine config for the context: inside a shipped
-    /// bundle it loads its own extensions by path (unsigned, no autoinstall); in dev it's the
-    /// historical default (load by name from `~/.duckdb`).
+    /// A fresh read-only session configured for this context (see `EngineSupport`). Extensions
+    /// load by name: DuckDB resolves each from its `extension_directory`, autoinstalling any
+    /// that aren't present yet — so a packaged app's first run fetches them from DuckDB's repo.
     private static func makeLoadedSession() async throws -> LakeSession {
-        let directory = bundledExtensionDirectory
-        let config = directory.map {
-            DuckDBConfig(extensionDirectory: $0, allowUnsignedExtensions: true, disableAutoinstall: true)
-        } ?? DuckDBConfig()
-        let session = try LakeSession(config: config)
-        try await session.loadCoreExtensions(fromDirectory: directory)
+        let session = try LakeSession(config: EngineSupport.config())
+        try await session.loadCoreExtensions()
         return session
     }
 

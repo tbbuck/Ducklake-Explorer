@@ -51,29 +51,29 @@ public actor LakeSession {
         db = try DuckDB(config: config)
     }
 
-    /// Loads the extensions every lake needs. `ducklake` and `spatial` are required; the remote
-    /// (`httpfs`/`aws`) and SQLite-catalog (`sqlite_scanner`) extensions are best-effort, so a
-    /// machine (or bundle) without them can still open local DuckDB lakes.
+    /// Installs (if needed) and loads the extensions every lake needs. `ducklake` and `spatial`
+    /// are required; the remote (`httpfs`/`aws`) and SQLite-catalog (`sqlite_scanner`) extensions
+    /// are best-effort, so a machine without them can still open local DuckDB lakes.
     ///
-    /// When `directory` is given (a shipped bundle's pinned extension dir) each extension is
-    /// `LOAD`ed by explicit path, so nothing is autoinstalled from the network or resolved out
-    /// of `~/.duckdb`. When nil (dev builds / tests) they load by name from the engine's default
-    /// extension directory, exactly as before.
-    public func loadCoreExtensions(fromDirectory directory: String? = nil) throws {
-        func load(_ name: String, required: Bool) throws {
-            let statement: String
-            if let directory {
-                statement = "LOAD '\(LakeSource.escape("\(directory)/\(name).duckdb_extension"))';"
+    /// `INSTALL` resolves each from the engine's `extension_directory`, fetching from DuckDB's
+    /// repo only when it isn't already cached there — so a packaged app's first run downloads
+    /// them into its per-user directory, while dev builds and tests (whose `~/.duckdb` already
+    /// has them) do no network I/O. `LOAD` then loads the cached copy.
+    public func loadCoreExtensions() throws {
+        func ensure(_ name: String, required: Bool) throws {
+            if required {
+                try db.run("INSTALL \(name);")
+                try db.run("LOAD \(name);")
             } else {
-                statement = "LOAD \(name);"
+                _ = try? db.run("INSTALL \(name);")
+                _ = try? db.run("LOAD \(name);")
             }
-            if required { try db.run(statement) } else { _ = try? db.run(statement) }
         }
-        try load("ducklake", required: true)
-        try load("spatial", required: true)
-        try load("httpfs", required: false)
-        try load("aws", required: false)
-        try load("sqlite_scanner", required: false)
+        try ensure("ducklake", required: true)
+        try ensure("spatial", required: true)
+        try ensure("httpfs", required: false)
+        try ensure("aws", required: false)
+        try ensure("sqlite_scanner", required: false)
     }
 
     /// Attaches a catalog READ-ONLY under `alias`, optionally making it the active catalog.

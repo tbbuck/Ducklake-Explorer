@@ -3,12 +3,18 @@
 <!--
   Hardened-runtime entitlements for the notarized, non-sandboxed build.
 
-  Deliberately empty. The app is not sandboxed, so arbitrary file access and outbound
-  S3/HTTPS need no entitlement; and the bundled libduckdb + DuckDB extensions are re-signed
-  with our own Developer ID, so hardened-runtime library validation accepts them without
-  com.apple.security.cs.disable-library-validation. If a future extension cannot be signed
-  under our team, add that one key here rather than weakening library validation wholesale.
+  disable-library-validation lets the hardened app dlopen DuckDB's own extensions, which
+  DuckDB autoinstalls at runtime into Application Support. Those extensions are signed by
+  DuckDB (ad-hoc / DuckDB's key), not by our Developer ID team, so library validation would
+  otherwise refuse to load them. We can't bundle + re-sign them instead: a .duckdb_extension
+  carries a metadata+signature footer after the Mach-O that Apple's notary rejects, and
+  DuckDB confirms signing dynamically-loaded extensions is not currently possible
+  (https://github.com/duckdb/duckdb/issues/16926). The app is not sandboxed, so file access
+  and the outbound HTTPS used to fetch extensions need no further entitlement.
 -->
 <plist version="1.0">
-<dict/>
+<dict>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
 </plist>
