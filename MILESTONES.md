@@ -61,8 +61,14 @@ Accepted, the app staples, and `spctl` passes it as "Notarized Developer ID."**
 (this relaxes the earlier "no network install" goal, which was incompatible with
 notarization). Later runs and offline use work from the cached copies.
 
-**Still to verify:** that a GitHub runner provides Xcode 26 (the macOS 26 SDK), and a real
-**clean-Mac** first-run (no Homebrew/DuckDB).
+**CI + release proven in CI.** `ci.yml` (build + `swift test`) and `release.yml` both pass on the
+**macos-26** runner — macos-15 + Xcode 26 crashed `actool` compiling the Icon Composer icon
+(CoreMedia/AVFCore framework skew), so the runner OS must match the target. The `v0.1.0` tag
+built, signed, **notarized**, stapled, and published `DuckLake Explorer.dmg` to a GitHub Release
+entirely in CI.
+
+**Still to verify:** a real **clean-Mac** first-run — download the Release DMG on a Mac with no
+Homebrew/DuckDB and confirm Gatekeeper accepts it and the first run autoinstalls the extensions.
 
 ---
 
