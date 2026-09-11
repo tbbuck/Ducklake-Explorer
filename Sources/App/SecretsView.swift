@@ -115,52 +115,66 @@ private struct NewSecretForm: View {
     @State private var error: String?
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            VStack(alignment: .leading, spacing: 8) {
-                row("Name", "optional", $name)
-                row("Type", "s3", $type)
-                row("Key ID", "", $keyID)
-                row("Secret", "", $secret, secure: true)
-                row("Endpoint", "optional — for S3-compatible stores", $endpoint)
-                row("Region", "optional", $region)
-                HStack(spacing: 8) {
-                    Text("URL style").font(.stratumUI(11)).foregroundStyle(Palette.textSecondary)
-                        .frame(width: 96, alignment: .leading)
-                    Picker("", selection: $urlStyle) {
-                        Text("path").tag("path"); Text("vhost").tag("vhost")
-                    }
-                    .labelsHidden().pickerStyle(.segmented).frame(width: 180)
-                    Spacer()
-                }
-                row("Scope", "e.g. s3://bucket/ — comma-separate several", $scope)
-                Toggle(isOn: $persist) {
-                    Text("Keep after quitting (persistent)")
-                        .font(.stratumUI(11)).foregroundStyle(Palette.textSecondary)
-                }
-                .toggleStyle(.switch).controlSize(.mini)
-
-                if let error {
-                    Text(error).font(.stratumMono(10)).foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                HStack(spacing: 8) {
-                    Text(persist ? "Written to ~/.duckdb — survives restarts; the duckdb CLI sees it too."
-                                 : "Kept in memory for this run only.")
-                        .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle")
+                    Text("New secret")
                     Spacer(minLength: 8)
-                    Button(busy ? "Creating…" : "Create secret") { create() }
-                        .disabled(busy || keyID.isEmpty || secret.isEmpty)
-                        .pointerStyle(.link)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10)).foregroundStyle(Palette.textTertiary)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
                 }
-            }
-            .padding(.top, 8)
-        } label: {
-            Label("New secret", systemImage: "plus.circle")
                 .font(.stratumUI(13, .semibold)).foregroundStyle(Palette.textPrimary)
-                .pointerStyle(.link)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).pointerStyle(.link)
+
+            if expanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    row("Name", "optional", $name)
+                    row("Type", "s3", $type)
+                    row("Key ID", "", $keyID)
+                    row("Secret", "", $secret, secure: true)
+                    row("Endpoint", "optional — for S3-compatible stores", $endpoint)
+                    row("Region", "optional", $region)
+                    HStack(spacing: 8) {
+                        Text("URL style").font(.stratumUI(11)).foregroundStyle(Palette.textSecondary)
+                            .frame(width: 96, alignment: .leading)
+                        Picker("", selection: $urlStyle) {
+                            Text("path").tag("path"); Text("vhost").tag("vhost")
+                        }
+                        .labelsHidden().pickerStyle(.segmented).frame(width: 180)
+                        Spacer()
+                    }
+                    row("Scope", "e.g. s3://bucket/ — comma-separate several", $scope)
+                    Toggle(isOn: $persist) {
+                        Text("Keep after quitting (persistent)")
+                            .font(.stratumUI(11)).foregroundStyle(Palette.textSecondary)
+                    }
+                    .toggleStyle(.switch).controlSize(.mini)
+
+                    if let error {
+                        Text(error).font(.stratumMono(10)).foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    HStack(spacing: 8) {
+                        Text(persist ? "Written to ~/.duckdb — survives restarts; the duckdb CLI sees it too."
+                                     : "Kept in memory for this run only.")
+                            .font(.stratumMono(9)).foregroundStyle(Palette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        Button(busy ? "Creating…" : "Create secret") { create() }
+                            .disabled(busy || keyID.isEmpty || secret.isEmpty)
+                            .pointerStyle(.link)
+                    }
+                }
+                .padding(.top, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .tint(Palette.accent)
     }
 
     @ViewBuilder
