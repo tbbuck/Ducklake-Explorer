@@ -87,6 +87,33 @@ final class AppModel {
         }
     }
 
+    // MARK: Engine
+
+    /// When running from a packaged `.app`, the pinned DuckDB extensions ship here (and
+    /// `libduckdb` is bundled alongside); dev builds return nil and fall back to the machine's
+    /// `~/.duckdb`. Resolved once — the bundle layout can't change at runtime.
+    private static let bundledExtensionDirectory: String? = {
+        guard let resources = Bundle.main.resourcePath else { return nil }
+        let dir = resources + "/duckdb-extensions"
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDirectory),
+              isDirectory.boolValue else { return nil }
+        return dir
+    }()
+
+    /// A fresh read-only session with the right engine config for the context: inside a shipped
+    /// bundle it loads its own extensions by path (unsigned, no autoinstall); in dev it's the
+    /// historical default (load by name from `~/.duckdb`).
+    private static func makeLoadedSession() async throws -> LakeSession {
+        let directory = bundledExtensionDirectory
+        let config = directory.map {
+            DuckDBConfig(extensionDirectory: $0, allowUnsignedExtensions: true, disableAutoinstall: true)
+        } ?? DuckDBConfig()
+        let session = try LakeSession(config: config)
+        try await session.loadCoreExtensions(fromDirectory: directory)
+        return session
+    }
+
     // MARK: Opening
 
     func open(path: String) async {
@@ -96,8 +123,7 @@ final class AppModel {
         lakePath = path            // reveal the three-pane + title behind the loader straight away
         defer { isLoading = false }
         do {
-            let session = try LakeSession()
-            try await session.loadCoreExtensions()
+            let session = try await Self.makeLoadedSession()
             let source: LakeSource = path.lowercased().hasSuffix(".sqlite")
                 ? .sqliteFile(path) : .duckDBFile(path)
             try await session.attach(source)
@@ -252,8 +278,7 @@ final class AppModel {
     /// view works before any lake is open. Read-only; the app never enters or stores credentials.
     func fetchSecrets() async -> [SecretInfo] {
         do {
-            let session = try LakeSession()
-            try await session.loadCoreExtensions()
+            let session = try await Self.makeLoadedSession()
             let result = try await session.query("""
                 SELECT name, type, provider, persistent,
                        array_to_string(scope, ', ') AS scope
