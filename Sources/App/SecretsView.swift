@@ -30,7 +30,8 @@ struct SecretsView: View {
             .padding(16)
             Divider().overlay(Palette.hairline)
 
-            ScrollView {
+            ScrollViewReader { proxy in
+              ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("DuckDB matches a secret to a remote path by scope automatically — you don't pick one. Add a secret below to reach a remote catalog; persistent ones are stored by DuckDB under ~/.duckdb.",
                           systemImage: "lock.shield")
@@ -48,9 +49,20 @@ struct SecretsView: View {
                     }
 
                     Divider().overlay(Palette.hairline).padding(.top, 4)
-                    NewSecretForm(onCreated: { Task { secrets = await model.fetchSecrets() } })
+                    NewSecretForm(
+                        onCreated: { Task { secrets = await model.fetchSecrets() } },
+                        onExpand: { isOpen in
+                            guard isOpen else { return }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    proxy.scrollTo("newSecretBottom", anchor: .bottom)
+                                }
+                            }
+                        })
+                    Color.clear.frame(height: 1).id("newSecretBottom")
                 }
                 .padding(16)
+              }
             }
         }
         .frame(width: 540, height: 460)
@@ -100,6 +112,7 @@ struct SecretRow: View {
 private struct NewSecretForm: View {
     @Environment(AppModel.self) private var model
     var onCreated: () -> Void
+    var onExpand: (Bool) -> Void = { _ in }
 
     @State private var expanded = false
     @State private var name = ""
@@ -118,6 +131,7 @@ private struct NewSecretForm: View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+                onExpand(expanded)
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "plus.circle")
