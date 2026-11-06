@@ -1,6 +1,6 @@
 # DuckLake Explorer — Specification
 
-> Status: **Draft** · 2026-09-10 · Target DuckDB **v1.5.5+**
+> Status: **Draft** · 2026-09-10 · Target DuckDB **v2.0.0** + DuckLake **1.1**
 
 A native macOS application for opening a **DuckLake** lakehouse, understanding its
 structure and history, and querying it read-only. It aims to be to DuckLake what a
@@ -42,8 +42,8 @@ It is a *reader and explorer*, never a mutator. See Non-goals.
   expiry (`ducklake_expire_snapshots`), cleanup, or orphan-file deletion.
 - **No Postgres/MySQL catalog backends** (DuckDB/SQLite only; `postgres_scanner`
   isn't even installed locally).
-- **No forked DuckDB engine** — we use the stock library (linked from Homebrew in dev; a
-  bundled copy of that same `libduckdb` in distribution), never a modified build.
+- **No forked DuckDB engine** — we use the official release (fetched into `Vendor/duckdb` in
+  dev; a bundled copy of that same `libduckdb` in distribution), never a modified build.
 - Not cross-platform (macOS only), not a general-purpose SQL IDE, not a BI tool.
 
 ## 3. Users & primary use cases
@@ -180,14 +180,16 @@ For a selected table:
 
 ## 7. Architecture
 
-- **Engine**: link the **local** `libduckdb` in-process (confirmed at
-  `/opt/homebrew/opt/duckdb/lib/libduckdb.dylib`, header at
-  `/opt/homebrew/opt/duckdb/include/duckdb.h`, v1.5.5). Access via the C API through a
-  small Swift wrapper — the `DuckDBKit` SPM package with a `CDuckDB` system module map
-  (see `Package.swift`). This honours "use the locally installed DuckDB" while keeping
-  typed, streaming, in-process results — no CLI subprocess, no `~/.duckdbrc`
-  side-effects, no output parsing. The Homebrew dylib is built for macOS 26, which sets
-  the deployment floor (see §8); distribution bundles its own copy (§9).
+- **Engine**: link `libduckdb` in-process from the official v2.0.0 release, which
+  `scripts/fetch-duckdb.sh` downloads into the gitignored `Vendor/duckdb` and checks against a
+  pinned SHA-256. Access via the stable C API (`duckdb.h`; the unstable C API v2 in
+  `duckdb_v2.h` isn't used) through a small Swift wrapper — the `DuckDBKit` SPM package with a
+  `CDuckDB` system module map (see `Package.swift`). This keeps typed, streaming, in-process
+  results — no CLI subprocess, no `~/.duckdbrc` side-effects, no output parsing. Distribution
+  bundles its own copy (§9).
+- **Catalog formats**: DuckLake 1.1 reads **1.0 and 1.1** catalogs and leaves a 1.0 catalog at
+  1.0. Pre-1.0 and `1.1-dev1` catalogs need migrating before even a read-only attach; this
+  read-only app never migrates, so it shows the engine's error for those.
 - **Extensions**: `ducklake` is required; `httpfs` + `aws` for remote; `spatial` for
   geometry; `sqlite_scanner` for SQLite catalogs. These are **loadable** (not baked
   into the dylib), installed under `~/.duckdb/extensions`. Dev builds rely on the user's
@@ -206,9 +208,9 @@ For a selected table:
 
 ## 8. Constraints & dependencies
 
-- DuckDB **≥ 1.5.5**, linked locally; extensions as above.
-- macOS **26+** (Tahoe); **Apple Silicon first**. The floor is 26 because Homebrew's
-  `libduckdb` is built for macOS 26 — matching it avoids any load-time version mismatch.
+- DuckDB **2.0.0** (DuckLake 1.1 requires ≥ 2.0.0); extensions as above.
+- macOS **26+** (Tahoe); **Apple Silicon first**. The floor was set to match Homebrew's
+  `libduckdb` build; the official release supports macOS 11+, so DuckDB no longer dictates it.
 - Swift 6 + SwiftUI + a thin AppKit layer. Engine layer is the `DuckDBKit` SPM package;
   the app project is generated from `project.yml` by **XcodeGen** (the one build-tool
   dependency). No third-party runtime dependencies without cause.
@@ -229,8 +231,8 @@ For a selected table:
    the app autoinstalls them at runtime into Application Support under the
    `disable-library-validation` entitlement. This **relaxes the original "no network install"
    goal**: a new user's first run needs network to fetch the extensions; later/offline runs use
-   the cached copies. Dev builds link Homebrew and use `~/.duckdb/extensions`.
-4. **macOS minimum** — ✅ resolved: **macOS 26** (matches the Homebrew libduckdb build).
+   the cached copies. Dev builds link `Vendor/duckdb` and use `~/.duckdb/extensions`.
+4. **macOS minimum** — ✅ resolved: **macOS 26** (see §8).
 5. **Map provider** — ✅ resolved: **MapLibre GL + MapTiler** in a WKWebView (the native
    SDK deferred as higher-risk on macOS).
 6. **Raw metadata browsing** — ✅ resolved: shipped as the **MetadataBrowser** (Meta mode).
