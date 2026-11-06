@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build (and validate) the sample DuckLake fixture.
 # Rebuilds from scratch, then re-opens it READ_ONLY by ABSOLUTE path from a
-# neutral working directory to prove the catalog is openable the way the app
-# will open it (CWD-independent), with data_path resolved relative to the file.
+# neutral working directory, the way the tests and --selftest open it: the stored
+# data_path is relative and resolves against the CWD, so they override it.
 set -euo pipefail
 
 cd "$(dirname "$0")"                 # -> Fixtures/
@@ -18,7 +18,7 @@ cd /tmp
 duckdb -init /dev/null <<SQL
 LOAD ducklake;
 LOAD spatial;
-ATTACH 'ducklake:$ABS' AS lake (READ_ONLY);
+ATTACH 'ducklake:$ABS' AS lake (READ_ONLY, DATA_PATH '$ABS.files', OVERRIDE_DATA_PATH true);
 USE lake;
 .mode box
 SELECT count(*) AS observations_now FROM observations;

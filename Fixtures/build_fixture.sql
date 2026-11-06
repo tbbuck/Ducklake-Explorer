@@ -1,22 +1,26 @@
 -- Builds the sample DuckLake used by tests and the M0 demo.
 -- Run via build_fixture.sh (which cd's into Fixtures/ first). The ATTACH sets an explicit
 -- relative DATA_PATH, so the catalog stores 'sample.ducklake.files/' rather than an absolute
--- machine path. DuckLake resolves a relative data_path against the catalog file's own directory,
--- so the committed fixture is portable (CI, a clean Mac, any clone) — verified by moving a lake
--- and reopening it from a neutral working directory.
+-- machine path. DuckLake resolves a relative data_path against the working directory, so readers
+-- pass an absolute DATA_PATH with OVERRIDE_DATA_PATH; that keeps the committed fixture portable
+-- (CI, a clean Mac, any clone).
 --
 -- Exercises, across ~10 snapshots: table creation, partitioning, a sort order,
 -- two insert batches, a DELETE (delete file), schema evolution (ADD COLUMN +
 -- UPDATE), a GEOMETRY column, and a second unpartitioned table.
 -- Coordinates are EPSG:4326 lon/lat (DuckDB GEOMETRY is SRID-less).
+--
+-- Written by DuckDB 2.0 at DuckLake format 1.1. legacy-1.0/ holds the same lake as written by
+-- DuckDB 1.5 at format 1.0; don't rebuild that one, it exists to prove older lakes still open.
 
 INSTALL ducklake;
 LOAD ducklake;
 INSTALL spatial;
 LOAD spatial;
 
--- Creating a DuckLake is just attaching it (CREATE_IF_NOT_EXISTS defaults true).
-ATTACH 'ducklake:sample.ducklake' AS lake (DATA_PATH 'sample.ducklake.files');
+-- Creating a DuckLake is just attaching it (CREATE_IF_NOT_EXISTS defaults true). Inlining is off
+-- because these small inserts would otherwise stay in the catalog and write no Parquet files.
+ATTACH 'ducklake:sample.ducklake' AS lake (DATA_PATH 'sample.ducklake.files', DATA_INLINING_ROW_LIMIT 0);
 USE lake;
 
 -- snapshot: create table with a geometry column
