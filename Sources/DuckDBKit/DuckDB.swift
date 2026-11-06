@@ -248,9 +248,10 @@ public final class DuckDB: @unchecked Sendable {
             return .string(timestampFromScaled(data, row, 1_000_000))
         case DUCKDB_TYPE_TIMESTAMP_MS:
             return .string(timestampFromScaled(data, row, 1_000))
-        case DUCKDB_TYPE_TIMESTAMP_NS:
+        case DUCKDB_TYPE_TIMESTAMP_NS, DUCKDB_TYPE_TIMESTAMP_TZ_NS:
             let micros = data.loadUnaligned(fromByteOffset: row * 8, as: Int64.self) / 1_000
-            return .string(formatTimestamp(duckdb_from_timestamp(duckdb_timestamp(micros: micros))))
+            let text = formatTimestamp(duckdb_from_timestamp(duckdb_timestamp(micros: micros)))
+            return .string(plan.rawType == DUCKDB_TYPE_TIMESTAMP_TZ_NS ? text + "+00" : text)
         case DUCKDB_TYPE_INTERVAL:
             let iv = data.loadUnaligned(fromByteOffset: row * 16, as: duckdb_interval.self)
             return .string(formatInterval(iv))

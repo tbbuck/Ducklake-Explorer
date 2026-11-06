@@ -105,6 +105,28 @@ final class DuckDBTests: XCTestCase {
         XCTAssertEqual(r.rows[0][9], .null)
     }
 
+    /// Guards the pin in scripts/fetch-duckdb.sh: a stale or mislinked library fails loudly here.
+    func testLinkedEngineVersion() throws {
+        let db = try DuckDB()
+        XCTAssertEqual(try db.run("SELECT version();").scalarString, "v2.0.0")
+    }
+
+    /// DuckDB 2.0 keeps an untyped NULL as the `"NULL"` type instead of defaulting to INTEGER.
+    func testUntypedNullDecodesAsNull() throws {
+        let db = try DuckDB()
+        let r = try db.run("SELECT NULL AS n;")
+        XCTAssertEqual(r.columns.map(\.type), [.sqlNull])
+        XCTAssertEqual(r.rows, [[.null]])
+    }
+
+    /// Nanosecond TIMESTAMPTZ decodes like TIMESTAMPTZ, truncated to the microseconds we display.
+    func testTimestampTZNanosDecodes() throws {
+        let db = try DuckDB()
+        let r = try db.run("SELECT '2026-01-05 08:15:00.123456789+00'::TIMESTAMPTZ_NS AS ts;")
+        XCTAssertEqual(r.columns.map(\.type), [.timestampTZ])
+        XCTAssertEqual(r.rows, [[.string("2026-01-05 08:15:00.123456+00")]])
+    }
+
     /// A result spanning multiple data chunks (>2048 rows) must decode fully.
     func testMultiChunkResult() throws {
         let db = try DuckDB()
@@ -187,4 +209,15 @@ enum TestFixture {
     /// Absolute data dir for the fixture (`…/sample.ducklake.files`). The committed catalog
     /// stores this path relative, so tests pass it as an explicit DATA_PATH override.
     static var dataPath: String { path + ".files" }
+
+    /// The same lake as written by DuckDB 1.5 at DuckLake format 1.0. Never rebuilt: it proves
+    /// lakes created before the DuckDB 2.0 upgrade still open.
+    static var legacyPath: String {
+        URL(fileURLWithPath: path)
+            .deletingLastPathComponent()
+            .appendingPathComponent("legacy-1.0/sample.ducklake")
+            .path
+    }
+
+    static var legacyDataPath: String { legacyPath + ".files" }
 }

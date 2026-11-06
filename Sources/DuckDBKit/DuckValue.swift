@@ -10,6 +10,7 @@ public enum DuckTypeID: Sendable, Equatable {
     case varchar, blob, uuid, bit
     case date, time, timestamp, timestampTZ, interval
     case list, structType, map, array, enumType, union, geometry, variant
+    case sqlNull
     case other(UInt32)
 
     init(_ raw: duckdb_type) {
@@ -37,7 +38,7 @@ public enum DuckTypeID: Sendable, Equatable {
         case DUCKDB_TYPE_TIMESTAMP, DUCKDB_TYPE_TIMESTAMP_S,
              DUCKDB_TYPE_TIMESTAMP_MS, DUCKDB_TYPE_TIMESTAMP_NS:
             self = .timestamp
-        case DUCKDB_TYPE_TIMESTAMP_TZ: self = .timestampTZ
+        case DUCKDB_TYPE_TIMESTAMP_TZ, DUCKDB_TYPE_TIMESTAMP_TZ_NS: self = .timestampTZ
         case DUCKDB_TYPE_INTERVAL: self = .interval
         case DUCKDB_TYPE_LIST: self = .list
         case DUCKDB_TYPE_STRUCT: self = .structType
@@ -47,6 +48,7 @@ public enum DuckTypeID: Sendable, Equatable {
         case DUCKDB_TYPE_UNION: self = .union
         case DUCKDB_TYPE_GEOMETRY: self = .geometry
         case DUCKDB_TYPE_VARIANT: self = .variant
+        case DUCKDB_TYPE_SQLNULL: self = .sqlNull
         default: self = .other(raw.rawValue)
         }
     }
@@ -97,6 +99,7 @@ public enum DuckTypeID: Sendable, Equatable {
         case .union: return "UNION"
         case .geometry: return "GEOMETRY"
         case .variant: return "VARIANT"
+        case .sqlNull: return "NULL"
         case .other(let raw): return "TYPE(\(raw))"
         }
     }
