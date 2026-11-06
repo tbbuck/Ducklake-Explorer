@@ -37,6 +37,7 @@ cd "$R"
 mkdir -p "$BUILD_DIR"
 
 echo "==> 1/6  Generate + build ($CONFIG)"
+"$R/scripts/fetch-duckdb.sh"
 xcodegen generate
 xcodebuild -project DuckLakeExplorer.xcodeproj -scheme "$SCHEME" -configuration "$CONFIG" \
   -derivedDataPath "$DDP" -quiet clean build

@@ -1,13 +1,14 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// DuckLakeCore: the engine layer. Wraps the locally-installed libduckdb (Homebrew,
-// v1.5.5) via its C API. Kept as an SPM package so it is testable headlessly with
-// `swift test`; the macOS app (see project.yml) links the DuckDBKit product.
+// DuckLakeCore: the engine layer. Wraps the official libduckdb release (v2.0.0) via its
+// C API. Kept as an SPM package so it is testable headlessly with `swift test`; the
+// macOS app (see project.yml) links the DuckDBKit product.
 //
-// Homebrew ships the library + headers here; the dylib's install name is absolute,
-// so no rpath is needed for local development. Bundling for distribution is M5.
-let duckdbLib = "/opt/homebrew/opt/duckdb/lib"
+// scripts/fetch-duckdb.sh puts the library + header here. The dylib's install name is
+// @rpath/libduckdb.dylib, so development builds need the rpath below;
+// scripts/bundle-duckdb-engine.sh replaces it for distribution.
+let duckdbLib = "\(Context.packageDirectory)/Vendor/duckdb"
 
 let package = Package(
     name: "DuckLakeCore",
@@ -16,13 +17,13 @@ let package = Package(
         .library(name: "DuckDBKit", targets: ["DuckDBKit"]),
     ],
     targets: [
-        // System module exposing duckdb.h (absolute path — see module.modulemap).
+        // System module exposing duckdb.h (see module.modulemap).
         .systemLibrary(name: "CDuckDB", path: "Sources/CDuckDB"),
         .target(
             name: "DuckDBKit",
             dependencies: ["CDuckDB"],
             linkerSettings: [
-                .unsafeFlags(["-L\(duckdbLib)", "-lduckdb"]),
+                .unsafeFlags(["-L\(duckdbLib)", "-lduckdb", "-Xlinker", "-rpath", "-Xlinker", duckdbLib]),
             ]
         ),
         .testTarget(

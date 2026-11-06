@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Bundle libduckdb into a built "DuckLake Explorer.app" and rewrite install names so the app
-# needs no Homebrew at runtime. Idempotent — safe to run repeatedly on the same bundle.
+# needs no development rpath at runtime. Idempotent — safe to run repeatedly on the same bundle.
 #
 # Only libduckdb is bundled. The DuckLake/spatial/httpfs/aws/sqlite_scanner extensions are NOT
 # bundled: a .duckdb_extension carries a metadata+signature footer after the Mach-O that Apple's
@@ -13,7 +13,7 @@
 #
 #   Usage: scripts/bundle-duckdb-engine.sh "/path/to/DuckLake Explorer.app"
 #
-# Optional override (for CI or non-standard installs):
+# Optional override (for non-standard builds):
 #   DUCKDB_LIB=/abs/libduckdb.dylib   pin the source dylib explicitly
 #
 set -euo pipefail
@@ -22,16 +22,9 @@ APP="${1:?usage: bundle-duckdb-engine.sh <path-to-.app>}"
 [ -d "$APP" ] || { echo "error: not an app bundle: $APP" >&2; exit 1; }
 
 # --- Resolve the source dylib ------------------------------------------------------------
-SRC_DYLIB="${DUCKDB_LIB:-}"
-if [ -z "$SRC_DYLIB" ]; then
-  for cand in \
-    "$(brew --prefix duckdb 2>/dev/null || true)/lib/libduckdb.dylib" \
-    /opt/homebrew/opt/duckdb/lib/libduckdb.dylib \
-    /usr/local/opt/duckdb/lib/libduckdb.dylib; do
-    [ -f "$cand" ] && { SRC_DYLIB="$cand"; break; }
-  done
-fi
-[ -f "$SRC_DYLIB" ] || { echo "error: libduckdb.dylib not found (set DUCKDB_LIB)" >&2; exit 1; }
+R="$(cd "$(dirname "$0")/.." && pwd)"
+SRC_DYLIB="${DUCKDB_LIB:-$R/Vendor/duckdb/libduckdb.dylib}"
+[ -f "$SRC_DYLIB" ] || { echo "error: $SRC_DYLIB not found (run scripts/fetch-duckdb.sh)" >&2; exit 1; }
 
 # --- Copy into Contents/Frameworks + fix its install name --------------------------------
 FRAMEWORKS="$APP/Contents/Frameworks"
@@ -53,9 +46,10 @@ fi
 if ! otool -l "$BIN" | grep -q "@executable_path/../Frameworks"; then
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$BIN"
 fi
-# Drop any absolute Homebrew rpath so a dev machine's libduckdb can't shadow the bundled copy.
+# Drop the development rpath so a dev machine's Vendor/duckdb can't shadow the bundled copy.
+# otool prints "path <rpath> (offset N)"; strip both ends so a checkout path with spaces survives.
 while read -r stale; do
   [ -n "$stale" ] && install_name_tool -delete_rpath "$stale" "$BIN" || true
-done < <(otool -l "$BIN" | awk '/ path / && /duckdb/ {print $2}')
+done < <(otool -l "$BIN" | awk '/ path / && /duckdb/ {sub(/^ *path /, ""); sub(/ \(offset [0-9]+\)$/, ""); print}')
 
 echo "bundled libduckdb into: $APP"

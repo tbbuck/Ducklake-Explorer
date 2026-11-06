@@ -15,8 +15,8 @@ jobs:
   build-test:
     # macos-26 (Apple Silicon): matches our macOS 26 deployment target + Xcode 26, so the OS
     # frameworks line up with the toolchain. Building on macos-15 crashed actool compiling the
-    # asset catalog with a CoreMedia/AVFCore "missing from root that overrides" skew. arm64 →
-    # Homebrew at /opt/homebrew, matching Package.swift's link path.
+    # asset catalog with a CoreMedia/AVFCore "missing from root that overrides" skew. arm64
+    # matches the libduckdb archive pinned in scripts/fetch-duckdb.sh.
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +26,11 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Install build tools + DuckDB
-        run: brew install xcodegen duckdb
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - name: Fetch DuckDB
+        run: bash scripts/fetch-duckdb.sh
 
       - name: Engine tests (DuckDBKit)
         run: swift test

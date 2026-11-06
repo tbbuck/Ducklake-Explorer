@@ -12,6 +12,9 @@ herd-lake.sqlite*
 # Local MapTiler key override — never commit (see Config/maptiler.xcconfig)
 Config/maptiler.local.xcconfig
 
+# DuckDB release fetched by scripts/fetch-duckdb.sh
+Vendor/
+
 # Xcode / SwiftPM
 *.xcodeproj/
 .build/

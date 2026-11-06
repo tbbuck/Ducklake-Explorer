@@ -30,8 +30,8 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Install build tools + DuckDB
-        run: brew install xcodegen duckdb
+      - name: Install build tools
+        run: brew install xcodegen
 
       - name: Import Developer ID signing certificate
         env:
