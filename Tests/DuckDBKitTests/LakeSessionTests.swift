@@ -51,6 +51,56 @@ final class LakeSessionTests: XCTestCase {
         XCTAssertEqual(r.scalarString, "5")
     }
 
+    // MARK: - Relative data paths
+
+    /// Opened the way the app opens a lake, with no override. `swift test` doesn't run from the
+    /// catalog's folder, so this only reads rows if the stored relative path follows the catalog.
+    func testRelativeDataPathResolvesAgainstCatalog() async throws {
+        for format in formats() {
+            let session = try LakeSession()
+            try await session.loadCoreExtensions()
+            try await session.attach(.duckDBFile(format.path))
+
+            let rows = try await session.query("SELECT count(*) FROM observations;")
+            XCTAssertEqual(rows.scalarString, "5", format.version)
+            let wkt = try await session.query("SELECT ST_AsText(geom) FROM observations ORDER BY id LIMIT 1;")
+            XCTAssertEqual(wkt.scalarString, "POINT (-1.55 53.8)", format.version)
+
+            // Time travel re-attaches, so it has to keep the resolved path.
+            try await session.timeTravel(to: 4)
+            let earlier = try await session.query("SELECT species FROM observations ORDER BY id LIMIT 1;")
+            XCTAssertEqual(earlier.scalarString, "Vulpes vulpes", format.version)
+        }
+    }
+
+    /// An explicit override still wins over the catalog-relative path.
+    func testExplicitDataPathIsKept() async throws {
+        let session = try LakeSession()
+        try await session.loadCoreExtensions()
+        try await session.attach(.duckDBFile(TestFixture.path), dataPath: TestFixture.dataPath)
+        let settings = try await session.query("SELECT data_path FROM ducklake_settings('lake');")
+        XCTAssertTrue(settings.scalarString?.hasPrefix(TestFixture.dataPath) == true, "\(settings.scalarString ?? "nil")")
+    }
+
+    func testDataPathOverride() {
+        let local = LakeSource.duckDBFile("/lakes/a b/x.ducklake")
+        XCTAssertEqual(local.dataPathOverride(forStored: "x.files/"), "/lakes/a b/x.files/")
+        XCTAssertEqual(local.dataPathOverride(forStored: "../shared/"), "/lakes/a b/../shared/")
+        XCTAssertEqual(LakeSource.sqliteFile("/lakes/x.sqlite").dataPathOverride(forStored: "x.files/"),
+                       "/lakes/x.files/")
+
+        // Already absolute or remote: the stored path is right as it stands.
+        XCTAssertNil(local.dataPathOverride(forStored: "/data/x/"))
+        XCTAssertNil(local.dataPathOverride(forStored: "~/data/x/"))
+        XCTAssertNil(local.dataPathOverride(forStored: "s3://bucket/lake/"))
+        XCTAssertNil(local.dataPathOverride(forStored: ""))
+
+        // No local folder to anchor to.
+        XCTAssertNil(LakeSource.duckDBFile("s3://bucket/x.ducklake").dataPathOverride(forStored: "x.files/"))
+        XCTAssertNil(LakeSource.duckDBFile("x.ducklake").dataPathOverride(forStored: "x.files/"))
+        XCTAssertNil(LakeSource.raw("ducklake:/lakes/x.ducklake").dataPathOverride(forStored: "x.files/"))
+    }
+
     // MARK: - Catalog formats
 
     /// Both DuckLake formats the app must read: new lakes, and ones from before the upgrade.

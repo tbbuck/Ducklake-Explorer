@@ -27,6 +27,28 @@ public enum LakeSource: Sendable, Equatable {
         }
     }
 
+    /// The folder holding a catalog file on this machine (with its trailing slash). Nil for
+    /// `.raw`, a remote catalog, or a bare file name, which is already relative to the CWD.
+    public var localCatalogDirectory: String? {
+        switch self {
+        case .duckDBFile(let p), .sqliteFile(let p):
+            guard !p.contains("://"), let slash = p.lastIndex(of: "/") else { return nil }
+            return String(p[...slash])
+        case .raw:
+            return nil
+        }
+    }
+
+    /// DuckLake resolves a stored relative `data_path` against the working directory, which for
+    /// a GUI app is arbitrary (usually `/`). This returns the path anchored to the catalog's
+    /// folder instead, or nil when the stored path is already absolute or remote, or the catalog
+    /// isn't local.
+    public func dataPathOverride(forStored stored: String) -> String? {
+        guard let localCatalogDirectory, !stored.isEmpty, !stored.hasPrefix("/"),
+              !stored.hasPrefix("~"), !stored.contains("://") else { return nil }
+        return localCatalogDirectory + stored
+    }
+
     static func escape(_ s: String) -> String {
         var out = ""
         for ch in s { out += ch == "'" ? "''" : String(ch) }
@@ -80,16 +102,23 @@ public actor LakeSession {
     /// Attaches a catalog READ-ONLY under `alias`, optionally making it the active catalog.
     ///
     /// `dataPath` overrides the catalog's recorded data path (via `DATA_PATH` +
-    /// `OVERRIDE_DATA_PATH`). Real lakes pass nil and use their stored path; it exists for lakes
-    /// whose stored `data_path` isn't resolvable as-is — notably the test fixture, which stores a
-    /// relative path that would otherwise resolve against the process CWD.
+    /// `OVERRIDE_DATA_PATH`). When it's nil, a local catalog's stored relative path is anchored
+    /// to the catalog's folder (see `LakeSource.dataPathOverride`), which takes a re-attach
+    /// because the stored path can only be read once the catalog is attached.
     @discardableResult
     public func attach(_ source: LakeSource, as alias: String = "lake", activate: Bool = true,
                        dataPath: String? = nil) throws -> QueryResult {
         self.source = source
         self.alias = alias
         self.dataPath = dataPath
-        let result = try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (\(attachOptions()));")
+        var result = try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (\(attachOptions()));")
+        if dataPath == nil, source.localCatalogDirectory != nil,
+           let stored = try db.run("SELECT data_path FROM ducklake_settings('\(alias)');").scalarString,
+           let anchored = source.dataPathOverride(forStored: stored) {
+            self.dataPath = anchored
+            try db.run("DETACH \(alias);")
+            result = try db.run("ATTACH '\(source.attachTarget)' AS \(alias) (\(attachOptions()));")
+        }
         if activate { try db.run("USE \(alias);") }
         // Best-effort: attach the raw catalog DB for column stats / metadata browsing. This is
         // a pure enrichment — if it fails, the core read-only exploration is unaffected.

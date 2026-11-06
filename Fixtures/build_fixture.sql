@@ -2,8 +2,8 @@
 -- Run via build_fixture.sh (which cd's into Fixtures/ first). The ATTACH sets an explicit
 -- relative DATA_PATH, so the catalog stores 'sample.ducklake.files/' rather than an absolute
 -- machine path. DuckLake resolves a relative data_path against the working directory, so readers
--- pass an absolute DATA_PATH with OVERRIDE_DATA_PATH; that keeps the committed fixture portable
--- (CI, a clean Mac, any clone).
+-- pass an absolute DATA_PATH with OVERRIDE_DATA_PATH (LakeSession does this for the app); that
+-- keeps the committed fixture portable (CI, a clean Mac, any clone).
 --
 -- Exercises, across ~10 snapshots: table creation, partitioning, a sort order,
 -- two insert batches, a DELETE (delete file), schema evolution (ADD COLUMN +

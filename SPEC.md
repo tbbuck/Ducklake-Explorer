@@ -190,6 +190,9 @@ For a selected table:
 - **Catalog formats**: DuckLake 1.1 reads **1.0 and 1.1** catalogs and leaves a 1.0 catalog at
   1.0. Pre-1.0 and `1.1-dev1` catalogs need migrating before even a read-only attach; this
   read-only app never migrates, so it shows the engine's error for those.
+- **Relative data paths**: DuckDB resolves a stored relative `data_path` against the working
+  directory, so `LakeSession` anchors it to a local catalog's folder when attaching. Remote
+  catalogs keep their stored path.
 - **Extensions**: `ducklake` is required; `httpfs` + `aws` for remote; `spatial` for
   geometry; `sqlite_scanner` for SQLite catalogs. These are **loadable** (not baked
   into the dylib), installed under `~/.duckdb/extensions`. Dev builds rely on the user's

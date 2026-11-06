@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build (and validate) the sample DuckLake fixture.
 # Rebuilds from scratch, then re-opens it READ_ONLY by ABSOLUTE path from a
-# neutral working directory, the way the tests and --selftest open it: the stored
-# data_path is relative and resolves against the CWD, so they override it.
+# neutral working directory. The stored data_path is relative and DuckDB resolves it
+# against the CWD, so this passes the same override LakeSession works out for the app.
 set -euo pipefail
 
 cd "$(dirname "$0")"                 # -> Fixtures/
